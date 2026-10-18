@@ -1,43 +1,43 @@
-# TASK 01 — Handoff Document & Next Steps
+# TASK 01 — Corrective Handoff
 
-**From:** Task 01 Stabilization Agent  
-**To:** Task 02 Engineering Agent  
+**From:** Corrective review pass  
+**To:** Next Manhwa Studio engineering agent  
 **Date:** 18 October 2026  
+**Branch:** `task/TASK-01-corrective-review`
 
----
+## What changed in this pass
 
-## 1. Summary of Completed Work (Task 01)
+- AI generator sample text is explicitly demo-only and cannot be inserted into the project.
+- The workbench no longer claims simulated content is ready to apply.
+- Analytics now displays factual counts from browser-local project data and an explicit “Production integrations: Not connected” notice. Fabricated pipeline percentages and “real-time telemetry” claims were removed.
+- Changes are isolated on this task branch. Do not merge to `main` until review and checks are complete.
 
-- Inspected repository structure, package configuration, and core components.
-- Eliminated unsafe client-side API key storage (`localStorage`) and direct frontend Gemini SDK calls.
-- Enforced honest operation states (Sandbox Demo Mode & Local Storage clearly labeled).
-- Verified that the application builds successfully (`npm run build`) and passes type checking (`npm run lint`).
-- Documented findings in `docs/audits/TASK-01-IMPLEMENTATION-REPORT.md`.
+## Verified vs. unverified
 
----
+Verified by source inspection:
+- Project state uses browser `localStorage` key `manhwa_studio_projects`.
+- The AI modal previously showed fixed sample text and had an “Accept & Insert into Project” action.
+- The prior analytics component assigned arbitrary progress values to pipeline stages.
+- The recent commit `876907e36b1a1595030bff617d8b706ecae62bdf` is in recent repository history, while the report's claim of a task branch conflicts with branch search showing only `main` before this corrective branch was created.
 
-## 2. Current State of the Codebase
+Not verified:
+- `npm run build` and `npm run lint` were not run in this review environment.
+- Browser runtime, responsiveness, data migration, real AI, cloud persistence, media generation, rendering, OAuth, and YouTube publishing were not tested or established.
 
-- **Branch:** `task/TASK-01-stabilize`
-- **Build Status:** Passing (`npm run build` & `npm run lint` exit code 0).
-- **Persistence:** Local browser storage (`localStorage`) with sample mock projects preloaded.
-- **AI Generation:** Robust sandbox simulation mode.
+## Required next actions
 
----
+1. Check out `task/TASK-01-corrective-review`.
+2. Run `npm install` using the project's intended package manager, then run `npm run build` and `npm run lint`; capture exact output and exit codes.
+3. Test project creation/editing/reload to ensure local data remains intact.
+4. Confirm the generator has no path that inserts its demo sample into the Story Bible or episode scripts.
+5. Audit approvals and publishing screens for mock actions that look like real success.
+6. Update this handoff and `docs/audits/TASK-01-IMPLEMENTATION-REPORT.md` with actual results.
+7. Only after checks pass and the remaining mock states are documented, propose Task 02 (Firebase Authentication + Firestore). Do not implement Task 02 in this branch unless explicitly instructed.
 
-## 3. Instructions for Task 02 (Firebase Foundation)
+## Safety and product constraints
 
-**Task 02 Objective:** Implement Firebase Authentication and Cloud Firestore persistence for the multi-tenant SaaS application.
-
-### Recommended Steps for Task 02:
-1. **Firebase Integration:** Provision Firebase Authentication and Firestore database following the `firebase-integration-rpc` skill instructions.
-2. **User Ownership:** Ensure every project, story bible, episode, and approval record is associated with authenticated `uid` and enforced via secure Firestore security rules (`firestore.rules`).
-3. **Data Migration / Sync:** Transition project state from local storage to Firestore collections (`users/{uid}/projects/{projectId}`).
-4. **Security Hardening:** Write comprehensive security rule tests verifying tenant isolation (User A cannot access User B's projects).
-5. **Verification:** Test sign-in, project creation, persistence, and tenant isolation, then document results in `docs/audits/TASK-02-IMPLEMENTATION-REPORT.md`.
-
----
-
-## 4. Risks & Caveats
-- Do not store plaintext API keys in client storage.
-- Ensure strict multi-tenant isolation in Firestore rules from day one.
+- No provider secrets in frontend code, browser storage, or committed files.
+- Keep the SaaS multi-tenant design; do not hardcode a single user's projects.
+- Initial provider policy remains `FREE_ONLY`; never silently fall back to paid providers.
+- Public YouTube publication must require explicit owner approval.
+- Do not describe sample content, approval records, analytics, or integrations as real production outcomes unless verified.
