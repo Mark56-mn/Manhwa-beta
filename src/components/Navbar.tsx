@@ -1,12 +1,11 @@
-import { BookOpen, Key, Plus, Sparkles, HelpCircle, Film, FolderKanban } from 'lucide-react';
+import { BookOpen, Shield, Plus, Sparkles, HelpCircle, Film, FolderKanban, BarChart3 } from 'lucide-react';
 
 interface NavbarProps {
-  currentView: 'projects' | 'workspace' | 'approvals' | 'generator';
-  onNavigate: (view: 'projects' | 'workspace' | 'approvals' | 'generator') => void;
+  currentView: 'projects' | 'workspace' | 'approvals' | 'generator' | 'analytics';
+  onNavigate: (view: 'projects' | 'workspace' | 'approvals' | 'generator' | 'analytics') => void;
   onOpenNewProject: () => void;
   onOpenGettingStarted: () => void;
   onOpenApiKey: () => void;
-  hasApiKey: boolean;
   activeProjectTitle?: string;
 }
 
@@ -16,7 +15,6 @@ export function Navbar({
   onOpenNewProject,
   onOpenGettingStarted,
   onOpenApiKey,
-  hasApiKey,
   activeProjectTitle
 }: NavbarProps) {
   return (
@@ -73,6 +71,16 @@ export function Navbar({
         </button>
 
         <button
+          onClick={() => onNavigate('analytics')}
+          className={`transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
+            currentView === 'analytics' ? 'text-cyan-400 font-semibold' : 'hover:text-white'
+          }`}
+        >
+          <BarChart3 className="w-4 h-4" />
+          Analytics
+        </button>
+
+        <button
           onClick={() => onNavigate('approvals')}
           className={`transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
             currentView === 'approvals' ? 'text-cyan-400 font-semibold' : 'hover:text-white'
@@ -105,15 +113,11 @@ export function Navbar({
 
         <button
           onClick={onOpenApiKey}
-          className={`px-3 py-1.5 text-xs font-medium rounded-lg flex items-center gap-1.5 border transition-colors ${
-            hasApiKey
-              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-              : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-800'
-          }`}
-          title="Gemini API Key Settings"
+          className="px-3 py-1.5 text-xs font-medium rounded-lg flex items-center gap-1.5 border bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors"
+          title="Security & Persistence Policy"
         >
-          <Key className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">{hasApiKey ? 'Gemini Active' : 'Sandbox Mode'}</span>
+          <Shield className="w-3.5 h-3.5 text-cyan-400" />
+          <span className="hidden sm:inline">[Local Storage - Demo Mode]</span>
         </button>
 
         <button

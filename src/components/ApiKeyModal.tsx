@@ -1,28 +1,12 @@
-import { useState } from 'react';
-import { X, Key, ShieldCheck, Check } from 'lucide-react';
+import { X, Key, ShieldCheck, Lock } from 'lucide-react';
 
 interface ApiKeyModalProps {
   isOpen: boolean;
   onClose: () => void;
-  apiKey: string;
-  onSaveApiKey: (key: string) => void;
 }
 
-export function ApiKeyModal({ isOpen, onClose, apiKey, onSaveApiKey }: ApiKeyModalProps) {
-  const [keyInput, setKeyInput] = useState(apiKey);
-  const [saved, setSaved] = useState(false);
-
+export function ApiKeyModal({ isOpen, onClose }: ApiKeyModalProps) {
   if (!isOpen) return null;
-
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSaveApiKey(keyInput.trim());
-    setSaved(true);
-    setTimeout(() => {
-      setSaved(false);
-      onClose();
-    }, 600);
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
@@ -36,53 +20,41 @@ export function ApiKeyModal({ isOpen, onClose, apiKey, onSaveApiKey }: ApiKeyMod
 
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
-            <Key className="w-5 h-5" />
+            <Lock className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white">Gemini API Key Settings</h3>
-            <p className="text-xs text-slate-400">Configure your runtime API key for live AI generation</p>
+            <h3 className="text-lg font-bold text-white">Security & API Configuration</h3>
+            <p className="text-xs text-slate-400">Server-side provider architecture</p>
           </div>
         </div>
 
-        <form onSubmit={handleSave} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">GEMINI_API_KEY</label>
-            <input
-              type="password"
-              placeholder="AIzaSy..."
-              value={keyInput}
-              onChange={(e) => setKeyInput(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 font-mono"
-            />
-            <p className="text-[11px] text-slate-500 mt-1.5">
-              Your key stays in your browser session and is never stored on public servers. Leave blank to use Sandbox Mode.
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-3">
+            <h4 className="text-xs font-semibold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4" />
+              Secure Client Policy
+            </h4>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              To protect customer credentials in this multi-tenant SaaS application, client-side API key storage and direct browser execution have been disabled. All AI provider requests must route securely through authenticated server-side proxies.
             </p>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center gap-3">
-            <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
+          <div className="p-3.5 rounded-xl bg-cyan-950/30 border border-cyan-500/20 flex items-center gap-3">
+            <Key className="w-5 h-5 text-cyan-400 shrink-0" />
             <p className="text-xs text-slate-300">
-              {keyInput ? 'Live API mode enabled with provided key.' : 'Currently running in robust offline Sandbox Simulation mode.'}
+              Currently operating in <strong className="text-white">Sandbox Demo Mode</strong> with intelligent mock generation.
             </p>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+          <div className="flex justify-end pt-4 border-t border-slate-800">
             <button
-              type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white"
+              className="px-5 py-2.5 text-xs font-semibold text-slate-900 bg-cyan-400 rounded-xl hover:bg-cyan-300 transition-colors shadow-lg shadow-cyan-400/20"
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2.5 text-xs font-semibold text-slate-900 bg-cyan-400 rounded-xl hover:bg-cyan-300 transition-colors flex items-center gap-1.5 shadow-lg shadow-cyan-400/20"
-            >
-              {saved ? <Check className="w-4 h-4" /> : <Key className="w-4 h-4" />}
-              <span>{saved ? 'Saved!' : 'Save Key'}</span>
+              Understood
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

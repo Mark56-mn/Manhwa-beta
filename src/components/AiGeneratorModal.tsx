@@ -1,16 +1,14 @@
 import { useState } from 'react';
-import { X, Sparkles, Wand2, Send, Check } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
+import { X, Sparkles, Wand2, Check, ShieldAlert } from 'lucide-react';
 
 interface AiGeneratorModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialPrompt: string;
   onSuccess: (result: string) => void;
-  apiKey: string;
 }
 
-export function AiGeneratorModal({ isOpen, onClose, initialPrompt, onSuccess, apiKey }: AiGeneratorModalProps) {
+export function AiGeneratorModal({ isOpen, onClose, initialPrompt, onSuccess }: AiGeneratorModalProps) {
   const [prompt, setPrompt] = useState(initialPrompt);
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState('');
@@ -22,24 +20,13 @@ export function AiGeneratorModal({ isOpen, onClose, initialPrompt, onSuccess, ap
     setResult('');
 
     try {
-      if (apiKey && apiKey.trim().length > 5) {
-        // Use real Gemini API
-        const ai = new GoogleGenAI({ apiKey });
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: `You are an expert manhwa writer and webtoon storyboard artist. ${prompt}`
-        });
-        const text = response.text || 'Generated content successfully.';
-        setResult(text);
-      } else {
-        // Sandbox simulation
-        await new Promise((r) => setTimeout(r, 1200));
-        setResult(
-          `[Sandbox AI Generation Result for: "${prompt.slice(0, 60)}..."]\n\n- Panel 1: Wide cinematic establishing shot with dramatic lighting and high-contrast ink lines.\n- Panel 2: Close-up on the protagonist's eyes with electric cyan glow and speed lines.\n- Dialogue: "There's no turning back now. The system has already locked our coordinates."\n- Action SFX: [CRASH] [SYSTEM OVERLOAD]`
-        );
-      }
+      // Robust Sandbox Simulation (secure server-side proxy required for live calls)
+      await new Promise((r) => setTimeout(r, 1200));
+      setResult(
+        `[Sandbox Demo Mode - Backend AI Not Configured]\n\n- Panel 1: Wide cinematic establishing shot with dramatic lighting and high-contrast ink lines.\n- Panel 2: Close-up on the protagonist's eyes with electric cyan glow and speed lines.\n- Dialogue: "There is no turning back now. The system has already locked our coordinates."\n- Action SFX: [CRASH] [SYSTEM OVERLOAD]`
+      );
     } catch (err: any) {
-      setResult(`Error during generation: ${err.message || 'Unknown error'}. Please check your API key.`);
+      setResult(`Error during simulation: ${err.message || 'Unknown error'}.`);
     } finally {
       setIsGenerating(false);
     }
@@ -61,8 +48,9 @@ export function AiGeneratorModal({ isOpen, onClose, initialPrompt, onSuccess, ap
           </div>
           <div>
             <h3 className="text-xl font-bold text-white">AI Studio Generator</h3>
-            <p className="text-xs text-cyan-400 font-mono">
-              {apiKey ? 'CONNECTED TO GEMINI API' : 'SANDBOX SIMULATION MODE'}
+            <p className="text-xs text-amber-400 font-mono flex items-center gap-1">
+              <ShieldAlert className="w-3.5 h-3.5" />
+              SANDBOX DEMO MODE (BACKEND PROXY NOT CONFIGURED)
             </p>
           </div>
         </div>
@@ -85,13 +73,13 @@ export function AiGeneratorModal({ isOpen, onClose, initialPrompt, onSuccess, ap
               className="px-5 py-2.5 text-xs font-semibold text-slate-900 bg-cyan-400 rounded-xl hover:bg-cyan-300 transition-colors flex items-center gap-2 shadow-lg shadow-cyan-400/20 disabled:opacity-50"
             >
               <Sparkles className="w-4 h-4" />
-              <span>{isGenerating ? 'Generating...' : 'Run AI Generation'}</span>
+              <span>{isGenerating ? 'Simulating...' : 'Run Sandbox Generation'}</span>
             </button>
           </div>
 
           {result && (
             <div className="space-y-2 pt-4 border-t border-slate-800 animate-fadeIn">
-              <label className="block text-xs font-mono text-cyan-400 uppercase">Generated Output</label>
+              <label className="block text-xs font-mono text-cyan-400 uppercase">Simulated Output</label>
               <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-xs font-mono text-slate-200 whitespace-pre-wrap max-h-60 overflow-y-auto">
                 {result}
               </div>

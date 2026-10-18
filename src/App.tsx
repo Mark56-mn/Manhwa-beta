@@ -10,7 +10,8 @@ import { EpisodeScriptEditor } from './components/EpisodeScriptEditor';
 import { ApprovalCenter } from './components/ApprovalCenter';
 import { AiGeneratorModal } from './components/AiGeneratorModal';
 import { ApiKeyModal } from './components/ApiKeyModal';
-import { BookOpen, Film, Sparkles, ArrowLeft, FolderKanban, ShieldCheck } from 'lucide-react';
+import { ProjectAnalytics } from './components/ProjectAnalytics';
+import { BookOpen, Film, Sparkles, ArrowLeft } from 'lucide-react';
 
 export default function App() {
   const [projects, setProjects] = useState<Project[]>(() => {
@@ -26,14 +27,13 @@ export default function App() {
   });
 
   const [activeProjectId, setActiveProjectId] = useState<string>(projects[0]?.id || 'proj-1');
-  const [currentView, setCurrentView] = useState<'projects' | 'workspace' | 'approvals' | 'generator'>('projects');
+  const [currentView, setCurrentView] = useState<'projects' | 'workspace' | 'approvals' | 'generator' | 'analytics'>('projects');
   const [workspaceTab, setWorkspaceTab] = useState<'bible' | 'scripts'>('bible');
 
   // Modals state
   const [isGettingStartedOpen, setIsGettingStartedOpen] = useState(false);
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
   const [isApiKeyOpen, setIsApiKeyOpen] = useState(false);
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('manhwa_gemini_key') || '');
 
   // AI Modal state
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
@@ -78,11 +78,6 @@ export default function App() {
     setIsAiModalOpen(true);
   };
 
-  const handleSaveApiKey = (key: string) => {
-    setApiKey(key);
-    localStorage.setItem('manhwa_gemini_key', key);
-  };
-
   return (
     <div className="min-h-screen bg-[#0B0F19] text-slate-100 flex flex-col selection:bg-cyan-500 selection:text-black">
       {/* Top Navbar */}
@@ -92,7 +87,6 @@ export default function App() {
         onOpenNewProject={() => setIsNewProjectOpen(true)}
         onOpenGettingStarted={() => setIsGettingStartedOpen(true)}
         onOpenApiKey={() => setIsApiKeyOpen(true)}
-        hasApiKey={Boolean(apiKey && apiKey.length > 5)}
         activeProjectTitle={activeProject?.title}
       />
 
@@ -186,6 +180,12 @@ export default function App() {
           </div>
         )}
 
+        {currentView === 'analytics' && activeProject && (
+          <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
+            <ProjectAnalytics project={activeProject} />
+          </div>
+        )}
+
         {currentView === 'generator' && (
           <div className="max-w-4xl mx-auto px-4 md:px-8 py-12 text-center space-y-6">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-violet-600 flex items-center justify-center mx-auto shadow-xl shadow-cyan-500/20">
@@ -194,7 +194,7 @@ export default function App() {
             <div>
               <h2 className="text-2xl font-bold text-white mb-2">AI Studio Prompt Workbench</h2>
               <p className="text-sm text-slate-400 max-w-lg mx-auto">
-                Generate custom series lore, character backstories, episode twists, or storyboard panels instantly using Gemini AI or robust sandbox simulation.
+                Generate custom series lore, character backstories, episode twists, or storyboard panels instantly in sandbox simulation mode.
               </p>
             </div>
             <button
@@ -231,8 +231,6 @@ export default function App() {
       <ApiKeyModal
         isOpen={isApiKeyOpen}
         onClose={() => setIsApiKeyOpen(false)}
-        apiKey={apiKey}
-        onSaveApiKey={handleSaveApiKey}
       />
 
       <AiGeneratorModal
@@ -240,7 +238,6 @@ export default function App() {
         onClose={() => setIsAiModalOpen(false)}
         initialPrompt={aiPromptContext}
         onSuccess={aiCallback}
-        apiKey={apiKey}
       />
     </div>
   );
