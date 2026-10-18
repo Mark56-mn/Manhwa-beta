@@ -194,7 +194,7 @@ export default function App() {
             <div>
               <h2 className="text-2xl font-bold text-white mb-2">AI Studio Prompt Workbench</h2>
               <p className="text-sm text-slate-400 max-w-lg mx-auto">
-                Generate custom series lore, character backstories, episode twists, or storyboard panels instantly in sandbox simulation mode.
+                Preview the demo interface only. Live AI generation is not connected, and sample output cannot be applied to your project.
               </p>
             </div>
             <button
