@@ -38,7 +38,6 @@ export default function App() {
   // AI Modal state
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [aiPromptContext, setAiPromptContext] = useState('');
-  const [aiCallback, setAiCallback] = useState<(res: string) => void>(() => {});
 
   useEffect(() => {
     localStorage.setItem('manhwa_studio_projects', JSON.stringify(projects));
@@ -72,9 +71,9 @@ export default function App() {
     }
   };
 
-  const handleOpenAiGenerator = (context: string, callback: (res: string) => void) => {
+  const handleOpenAiGenerator = (context: string, _callback: (res: string) => void) => {
+    // The current generator is a non-persistent demo. Never apply its sample to project data.
     setAiPromptContext(context);
-    setAiCallback(() => callback);
     setIsAiModalOpen(true);
   };
 
@@ -201,9 +200,7 @@ export default function App() {
               onClick={() =>
                 handleOpenAiGenerator(
                   `Brainstorm an epic plot twist and character arc for a manhwa series.`,
-                  (res) => {
-                    alert('Generated content ready! You can apply it to your project.');
-                  }
+                  () => {}
                 )
               }
               className="px-6 py-3 text-xs font-semibold text-slate-900 bg-cyan-400 rounded-xl hover:bg-cyan-300 transition-colors inline-flex items-center gap-2 shadow-lg shadow-cyan-400/20"
@@ -237,7 +234,6 @@ export default function App() {
         isOpen={isAiModalOpen}
         onClose={() => setIsAiModalOpen(false)}
         initialPrompt={aiPromptContext}
-        onSuccess={aiCallback}
       />
     </div>
   );
