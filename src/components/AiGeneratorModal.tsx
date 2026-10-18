@@ -5,7 +5,6 @@ interface AiGeneratorModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialPrompt: string;
-  onSuccess: (result: string) => void;
 }
 
 export function AiGeneratorModal({ isOpen, onClose, initialPrompt }: AiGeneratorModalProps) {
