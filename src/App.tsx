@@ -67,7 +67,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('manhwa_studio_projects', JSON.stringify(projects));
+    try {
+      localStorage.setItem('manhwa_studio_projects', JSON.stringify(projects));
+    } catch (e) {
+      // Storage can be unavailable (private mode, quota). Report honestly instead of crashing.
+      console.error('Failed to persist projects to localStorage', e);
+    }
   }, [projects]);
 
   const activeProject = projects.find((p) => p.id === activeProjectId) || projects[0];
