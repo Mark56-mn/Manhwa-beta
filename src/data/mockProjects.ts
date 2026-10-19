@@ -121,8 +121,7 @@ export const INITIAL_PROJECTS: Project[] = [
         approver: 'Studio Director',
         timestamp: '2026-10-15 14:30',
         notes: 'Action pacing is excellent. Approved for storyboard asset rendering.',
-        youtubeUploadState: 'private_uploaded',
-        youtubeVideoId: 'dQw4w9WgXcQ'
+        youtubeUploadState: 'not_uploaded'
       }
     ]
   },

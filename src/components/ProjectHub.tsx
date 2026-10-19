@@ -43,7 +43,7 @@ export function ProjectHub({
             Your Creative Universe
           </h1>
           <p className="text-sm text-slate-400 max-w-2xl">
-            Manage your webtoon series, build airtight story bibles, generate cinematic episode scripts, and prepare video assets for secure publication.
+            Manage your webtoon series, build airtight story bibles, and draft episode scripts in browser-local storage. AI generation, video rendering, and publishing are not connected in this build.
           </p>
         </div>
 

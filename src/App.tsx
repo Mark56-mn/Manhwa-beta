@@ -13,12 +13,33 @@ import { ApiKeyModal } from './components/ApiKeyModal';
 import { ProjectAnalytics } from './components/ProjectAnalytics';
 import { BookOpen, Film, Sparkles, ArrowLeft } from 'lucide-react';
 
+const FABRICATED_VIDEO_ID = 'dQw4w9WgXcQ';
+
+/**
+ * Earlier demo builds wrote a hardcoded sample YouTube video ID into stored
+ * approval records. Reset only those provably-fabricated publication fields;
+ * never touch or delete any other user data.
+ */
+function sanitizeStoredProjects(projects: Project[]): Project[] {
+  return projects.map((project) => ({
+    ...project,
+    approvals: (project.approvals || []).map((approval) =>
+      approval.youtubeVideoId === FABRICATED_VIDEO_ID
+        ? { ...approval, youtubeUploadState: 'not_uploaded' as const, youtubeVideoId: undefined }
+        : approval
+    )
+  }));
+}
+
 export default function App() {
   const [projects, setProjects] = useState<Project[]>(() => {
     const saved = localStorage.getItem('manhwa_studio_projects');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return sanitizeStoredProjects(parsed);
+        }
       } catch (e) {
         console.error('Failed to parse saved projects', e);
       }

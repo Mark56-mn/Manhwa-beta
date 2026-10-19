@@ -40,7 +40,7 @@ export function GettingStartedModal({ isOpen, onClose, onGetStarted }: GettingSt
               What is Manhwa Studio?
             </h3>
             <p className="leading-relaxed text-slate-300">
-              Manhwa Studio is an AI-powered production pipeline designed to take your comic concept from a raw premise to a structured Story Bible, scene-by-scene script breakdown, and final motion comic approval. Whether you are building a Cyberpunk thriller or a Dark Fantasy dungeon epic, this workspace keeps your creative canon consistent and professional.
+              Manhwa Studio is a creator workspace for taking a comic concept from a raw premise to a structured Story Bible, scene-by-scene script breakdown, and approval records. Whether you are building a Cyberpunk thriller or a Dark Fantasy dungeon epic, this workspace keeps your creative canon consistent. AI generation, video rendering, and publishing are not connected in this build.
             </p>
           </div>
 
@@ -81,7 +81,7 @@ export function GettingStartedModal({ isOpen, onClose, onGetStarted }: GettingSt
                 <h4 className="font-semibold text-white">4. Approval & YouTube Publisher</h4>
               </div>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Review rendered motion comic videos, connect YouTube securely via OAuth, upload privately/unlisted by default, and perform explicit dual confirmation for public release.
+                Review approval records in the Approval Center. YouTube OAuth, uploads, and public release are not connected in this build: uploads and public publishing remain unavailable until server-side OAuth and a rendered video version exist, and public release will always require explicit owner approval.
               </p>
             </div>
           </div>

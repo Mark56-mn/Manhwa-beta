@@ -211,7 +211,7 @@ export function StoryBibleEditor({ project, onUpdateProject, onOpenAiGenerator }
               className="px-3 py-1.5 text-xs font-medium bg-gradient-to-r from-cyan-500/20 to-violet-500/20 border border-cyan-500/30 text-cyan-300 rounded-lg hover:bg-cyan-500/30 transition-colors flex items-center gap-1.5"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>AI Expand Premise</span>
+              <span>AI Expand Premise (Demo)</span>
             </button>
           </div>
 
