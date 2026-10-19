@@ -40,6 +40,12 @@ export default function App() {
   const [aiPromptContext, setAiPromptContext] = useState('');
 
   useEffect(() => {
+    // Task 01 removed client-side provider key storage. Purge any key left behind by
+    // earlier versions so credentials cannot linger in browser storage (no value read).
+    localStorage.removeItem('manhwa_gemini_key');
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem('manhwa_studio_projects', JSON.stringify(projects));
   }, [projects]);
 

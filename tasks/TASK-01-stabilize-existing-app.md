@@ -109,7 +109,13 @@ Do not duplicate files if an equivalent canonical location already exists; updat
 
 ## Next task after completion
 
-**TASK 02 — Firebase foundation:** implement Firebase Authentication and Firestore persistence for the multi-tenant SaaS, including user/project ownership, secure server-side authorization, Firestore security rules, environment configuration, and tests. Do not start Task 02 until Task 01's report clearly documents the baseline and current code state.
+> **SUPERSEDED (19 October 2026):** The Firebase foundation described below no longer matches the agreed
+> architecture. Per the consolidated blueprint the sequence is now **TASK 02 — Finish Task 01 verification**
+> (`tasks/TASK-02-finish-task-01-verification.md`), followed by Cloudflare Worker/Hono + D1/R2 tasks — not
+> Firebase/Firestore. See `tasks/ROADMAP-RECONCILIATION.md`. Do not implement Firebase unless the owner
+> explicitly changes the architecture decision.
+
+**TASK 02 — Firebase foundation (superseded):** implement Firebase Authentication and Firestore persistence for the multi-tenant SaaS, including user/project ownership, secure server-side authorization, Firestore security rules, environment configuration, and tests. Do not start Task 02 until Task 01's report clearly documents the baseline and current code state.
 
 ## Required final response
 

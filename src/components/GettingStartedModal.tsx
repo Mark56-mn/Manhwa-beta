@@ -71,7 +71,7 @@ export function GettingStartedModal({ isOpen, onClose, onGetStarted }: GettingSt
                 <h4 className="font-semibold text-white">3. AI Studio Generator</h4>
               </div>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Use intelligent presets to instantly brainstorm plot twists, expand character dialogues, or generate scene prompts. Fully supports Sandbox mode or live Gemini API keys.
+                Preview the generator interface and example prompts. Live AI generation is not connected in this build: no prompt is sent to a model, and demo sample text cannot be inserted into your project.
               </p>
             </div>
 
