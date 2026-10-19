@@ -9,9 +9,9 @@ has been made.
 | Piece | State |
 |---|---|
 | `wrangler.toml` + `worker/src/` (Hono API) | in repo, verified locally with `wrangler dev` (workerd): `/healthz` → 200, `/readyz` → 200 `ready` with real `d1: ok` |
-| Cloudflare API token | audited 19 Oct 2026 (twice): valid; **account read ✓, Workers scripts ✓, D1 ✓, zones ✓ (1 zone), R2 ✗ (error 10042, still denied after the owner's grant attempt)** |
+| Cloudflare API token | audited 19 Oct 2026 (twice): valid; **account read ✓, Workers scripts ✓, D1 ✓, zones ✓ (1 zone), R2 ✗ (error 10042 — now resolved after owner activated R2 on the account)** |
 | D1 database `manhwa-studio` | **CREATED** (id `d9557398-b439-463a-b5aa-a3703d5c3fdb`, region WNAM); `migrations/0001_init_tenancy.sql` applied **locally and remotely**; remote tables verified live |
-| R2 bucket `manhwa-studio-assets` | live (created + verified 19 Oct 2026, WNAM, Standard). Worker binding `FILES` wired in `wrangler.toml`. FILES endpoint stubbed in worker at task/TASK-12. |
+| R2 bucket `manhwa-studio-assets` | live (created + verified 19 Oct 2026, WNAM, Standard). Worker binding `FILES` wired in `wrangler.toml`. Health check (`/readyz`) reports `r2: ok` in workerd; asset upload/download route stubs exist (501 `not_ready`). Actual asset routes: TASK 12. |
 | Sign in with Freebuff (OIDC) | SDK installed and mounted, but **no client registered** — registration requires the owner's Freebuff login; routes answer `auth_not_configured` (503) |
 | Worker deployment | **none** |
 

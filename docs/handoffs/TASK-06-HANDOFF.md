@@ -15,7 +15,7 @@
 ## 2. What is done
 
 - **Credentials stored and audited** (owner ran `scripts/store-secrets.sh`; values never printed):
-  - Cloudflare token **valid** — live probes: account read ✓, Workers scripts ✓, D1 ✓, zones ✓ (1 zone), **R2 ✗ error 10042**. Account: `78bd087d85c6604c2dc25195a80eac91`.
+  - Cloudflare token **valid** — live probes: account read ✓, Workers scripts ✓, D1 ✓, zones ✓ (1 zone), **R2 ✗ error 10042 at TASK-06 write time; resolved 19 Oct 2026** after the owner activated R2 on the account. Account: `78bd087d85c6604c2dc25195a80eac91`.
   - Supabase: `SUPABASE_DB_URL` + `SUPABASE_URL` structurally consistent (project ref `jtzekmavcbepzgunfuyr`), pooler `aws-1-eu-west-1.pooler.supabase.com:6543` **TCP-reachable**; no DB session opened yet.
 - **Worker foundation** (`wrangler.toml`, `worker/src/index.ts`, `worker/src/env.ts`): Hono API with `/healthz` and `/readyz` reporting observed dependency status. **Verified in local workerd** (`wrangler dev`): `/healthz` → 200; `/readyz` → honest `not_configured` for D1/R2.
 - Gates: `bun run lint` → 0, `bun run test` → 0 (34 pass), `bun run build` → 0.
@@ -24,7 +24,7 @@
 ## 3. What is NOT done / blocked
 
 - **TASK 07** (next): authentication (Freebuff/OIDC contract must be validated — stop and report if it's unavailable), tenant isolation, **D1 database creation + initial migrations**, `/readyz` flip to hard-gate.
-- **R2 (TASK 12) UNBLOCKED:** the blocker was the account-level R2 entitlement (API error 10042), not the token — both account tokens already included **Workers R2 Storage Write/Read**. The owner activated R2; bucket `manhwa-studio-assets` created (WNAM, Standard) and verified (REST create/read/delete 200); worker `/readyz` now reports `r2: ok` in workerd. See TASK-07 handoff.
+- **R2 (TASK 12) UNBLOCKED + binding wired:** the blocker was the account-level R2 entitlement (API error 10042), not the token — both account tokens already included **Workers R2 Storage Write/Read**. The owner activated R2; bucket `manhwa-studio-assets` created (WNAM, Standard) and verified (REST create/read/delete 200); worker `/readyz` now reports `r2: ok` in workerd. See TASK-07 handoff.
 - **Supabase role decision** pending (TASK 07): decide its single justified role or leave unused; default architecture is D1 + R2. A live DB test should accompany that decision.
 - Deployment (needs owner authorization; procedure in `docs/DEPLOYMENT.md`), CI first run, frontend hosting.
 - Owner reminders: rotate the Cloudflare token and Supabase password if the earlier scrollback exposure wasn't already addressed (they may have rotated before storing — unknown).
