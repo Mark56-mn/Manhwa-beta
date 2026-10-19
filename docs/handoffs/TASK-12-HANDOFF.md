@@ -1,108 +1,43 @@
-# TASK 07 — Implementation Report
+# TASK 12 — Handoff
 
 **Product:** Manhwa Studio · **Repository:** `Mark56-mn/Manhwa-beta`
-**Task:** TASK 07 — Authentication, tenant isolation, and D1 data foundation (blueprint Phase 1)
-**Branch:** `task/TASK-07-d1-tenancy-foundation` (base `6604457` = TASK-06 head; **seven stacked unmerged branches**; nothing pushed; `main` untouched)
+**Task:** TASK 12 — R2 asset storage (asset upload/download routes behind `env.FILES` binding)
+**Branch carried from:** `task/TASK-07-d1-tenancy-foundation` (base `6604457` = TASK-06 head; **seven stacked unmerged branches**; nothing pushed; `main` untouched)
 **Date:** 19 October 2026
 
-**Overall status: PARTIAL** — D1, tenancy schema, migrations (local **and** remote), and isolation tests are **complete and verified**. **Auth is blocked** on the owner registering a Sign in with Freebuff client (their login required — §3). The contract was validated, not invented.
+**Overall status: READY TO IMPLEMENT** — the R2 entitlement is live, the bucket exists, the binding is wired, and the worker already reports `r2: ok`. What remains is the actual asset upload/download route implementation.
 
 ---
 
-## 1. Scope completed
+## What's already done (don't redo)
 
-- [x] Token re-audit after the owner's permission grant (finding: **R2 still denied**, §2).
-- [x] Freebuff OIDC contract validated: `@freebuff/auth@0.1.0` installed, SDK `AGENTS.md` read and followed, API verified (`createFreebuffAuth` / `wrap` / `getUser` / `isSameOriginRequest`).
-- [x] **D1 database created on the owner's account** and bound to the worker.
-- [x] Initial migrations: `organizations`, `users`, `organization_memberships`, `projects`, `audit_events` + indexes — applied **locally and remotely**; remote schema verified live.
-- [x] `/readyz` now **hard-gates D1** (503 until a real `SELECT 1` succeeds).
-- [x] Auth wired per contract with an honest `auth_not_configured` state; protected-route pattern implemented (`/api/v1/me`).
-- [x] Tenant-isolation tests (12) executing the **real migration SQL**; full gate chain green.
+- [x] R2 subscription enabled on the account (owner action) — error 10042 is gone.
+- [x] Bucket `manhwa-studio-assets` created (WNAM, Standard, default jurisdiction) and confirmed by a live list.
+- [x] End-to-end object proof over the Cloudflare REST API: PUT `assets/demo.txt`, GET it back, DELETE it — each returned HTTP 200.
+- [x] Worker binding `FILES` wired in `wrangler.toml` (`binding = "FILES"`, `bucket_name = "manhwa-studio-assets"`).
+- [x] `worker/src/env.ts`: `Env` now declares `FILES?: R2BucketLike` with the comment "created + verified in TASK 12 (bucket `manhwa-studio-assets`)".
+- [x] `worker/src/index.ts`: `/readyz` R2 check reports `r2: { status: 'ok', detail: 'R2 binding attached (bucket manhwa-studio-assets).' }` in workerd, and a `/api/v1/assets` route stub exists returning 501 `not_ready`.
+- [x] `tests/asset.test.ts`: one smoke test that the worker handles a missing FILES binding gracefully.
+- [x] Gates green: `bun install --frozen-lockfile`, `lint`, `test` (47/0), `build` — all 0.
+- [x] Live workerd probe (Miniflare on :8787): `/readyz` returned 200 with `r2: ok`.
 
-## 2. Credential re-audit (owner granted more access)
+## What's still needed (TASK 12 implementation)
 
-| Probe | Before grant | After grant |
-|---|---|---|
-| R2 buckets list | DENIED 10042 | **STILL DENIED 10042** |
-| D1 list | allowed | allowed |
-| Workers scripts | allowed | allowed |
+- Replace the `/api/v1/assets` 501 stub with real routes using `env.FILES`:
+  - `GET /api/v1/assets/:key` — read object (with `Cache-Control` policy appropriate to asset semantics; never personalize asset responses with user data).
+  - `PUT/POST /api/v1/assets/:key` — write object (must be protected; authorize against the caller's tenant/owner before permitting writes, keying ownership by the authenticated `user.sub`).
+  - `HEAD /api/v1/assets/:key` — object metadata (size, etag, content-type).
+  - `DELETE /api/v1/assets/:key` — delete object (protected; ownership/permission check).
+- Decide asset lifecycle + ownership model in D1 (which tenant/owner an asset belongs to, whether keys are user-scoped, deletion behavior). This is the design step before coding.
+- Tenant isolation: asset reads are arguably public, but writes/deletes must be tenant-scoped or owner-scoped and must never let one user clobber another's key. Use the same sub-keyed authorization primitive the D1 routes use.
+- Tests for the R2 routes: mock `R2BucketLike` or use the real binding in workerd; cover missing key (404), successful read/write, auth gating, and that unauthenticated/mutating requests are rejected appropriately.
+- Update `docs/audits/TASK-12-IMPLEMENTATION-REPORT.md` and this handoff when done.
 
-**Owner action needed:** until 19 Oct 2026 the API returned error 10042 ("Please enable R2 through the Cloudflare Dashboard"), because R2 was not enabled on the account. The owner activated R2; the token already carried **Workers R2 Storage Write/Read** on this account (verified by listing account tokens). Now `GET /accounts/{id}/r2/buckets` returns 200, bucket `manhwa-studio-assets` is created (WNAM, Standard), and the worker's `/readyz` reports `r2: ok` in workerd. R2 is not needed until TASK 12.
+## Known limits / still blocked
 
-### 2b. R2 (live correction)
+- **Sign in with Freebuff** is still not configured — client IDs must be registered by the **owner** (their Freebuff login; an agent must not mint/handle it). Until `FREEBUFF_CLIENT_ID` / `FREEBUFF_ISSUER` / `APP_ORIGIN` are set, auth-protected asset mutations cannot be tested end-to-end; the unblock paths are in the TASK-07 handoff.
+- Write path design (ownership/tiering/size limits) is not yet decided — that's the first TASK 12 decision.
 
-The earlier finding — that the API token lacked R2 permission — was the wrong diagnosis. The token already had **Workers R2 Storage Write/Read** on this account (verified by listing account tokens). The real blocker was the account not having R2 enabled: `GET /accounts/{id}/r2/buckets` returned HTTP 403, error 10042, `"Please enable R2 through the Cloudflare Dashboard."`. That code is an account-subscription/entitlement failure, not a per-token authorization failure, and it is checked before token permissions — so adding token permissions would not have helped either.
+## Why this matters
 
-After the owner enabled R2 on the account:
-
-- `GET /accounts/{id}/r2/buckets` now returns 200.
-- Bucket `manhwa-studio-assets` created (WNAM, Standard, default jurisdiction) and re-listed to confirm.
-- Object end-to-end proof over the Cloudflare REST API: PUT `assets/demo.txt`, GET it back, then DELETE it — each returned HTTP 200.
-- Worker binding `FILES` wired in `wrangler.toml`; `/readyz` reports `r2: { status: 'ok', detail: 'R2 binding attached (bucket manhwa-studio-assets).' }` in real workerd.
-- No S3 endpoint or account ID is needed externally — the Worker binding and the Cloudflare REST API both use the account id already in `wrangler.toml`.
-
-R2 is not needed until TASK 12.
-
-## 3. Authentication — validated contract, blocked on owner registration
-
-- The documented contract exists and was implemented as specified: `@freebuff/auth` installed; `worker/src/auth.ts` creates **one cached auth instance per isolate**; `worker/src/index.ts` wraps the app **only when configured**; `/api/v1/me` shows the mandatory pattern (server-side `getUser`, 401 when signed out, `Cache-Control: private, no-store`); future mutations must use `isSameOriginRequest` and key rows by `user.sub`.
-- **Blocker:** client IDs must be registered **with the owner's Freebuff login** — an agent must never mint or handle that login (SDK AGENTS.md §1/§5). Until `FREEBUFF_CLIENT_ID` / `FREEBUFF_ISSUER` / `APP_ORIGIN` are configured, `/auth/freebuff/*` and protected APIs answer **503 `auth_not_configured`** (verified below). No OAuth flow was hand-rolled; no fake user exists.
-- **Two unblock paths (owner's choice):** (a) run `npx @freebuff/auth register --project manhwa-studio --name "Manhwa Studio" --environment development --redirect-uri http://localhost:8788/auth/freebuff/callback` with their Freebuff CLI login and give me the printed public values, or (b) authorize a Freebuff Sites project so `sites_enable_auth` provisions clients and injects the variables on deploy.
-
-## 4. D1 database and schema (live on the owner's account)
-
-- `bunx wrangler d1 create manhwa-studio` → **created**, region **WNAM**, id `d9557398-b439-463a-b5aa-a3703d5c3fdb` (wired into `wrangler.toml` with `account_id`).
-- `migrations/0001_init_tenancy.sql` executed **10 commands** — `--local` exit 0 and `--remote` exit 0.
-- **Remote verification (live query):** tables `audit_events, d1_migrations, organization_memberships, organizations, projects, users` served from WNAM.
-- Design: identity keyed by OIDC `sub` (**no emails stored**); every tenant-owned row cascades from `organizations`; membership `UNIQUE(org, sub)`; role/status CHECK constraints; indexes for sub-lookups, org scoping, and audit time-series.
-
-## 5. Worker verification in local workerd (evidence)
-
-| Probe | Response |
-|---|---|
-| `/healthz` | **200** `{"status":"ok"}` |
-| `/readyz` | **200** `{"status":"ready","checks":{"d1":{"status":"ok","detail":"D1 binding answered SELECT 1."},"r2":{"status":"ok","detail":"R2 binding attached (bucket manhwa-studio-assets)."},"auth":{"status":"not_configured",...}}}` (R2 fixed 19 Oct 2026; was `not_configured` at TASK 07 write time) |
-| `/api/v1/me` | **503** `{"error":"auth_not_configured",...}` |
-| `/auth/freebuff/signin` | **503** `auth_not_configured` with owner instructions |
-
-Local wrangler process stopped; port confirmed closed.
-
-## 6. Tests
-
-New `tests/tenancy.test.ts` (**12 tests**) runs the real migration file against SQLite (D1 is SQLite-compatible) and asserts: expected tables/indexes; org-scoped queries never cross tenants; **sub-keyed membership joins** return only the caller's tenant rows; non-members get no role (the authorization primitive); no email column exists; role/status/empty-title/foreign-key/duplicate-membership constraints all reject; tenant deletion cascades. Suite totals: **46 tests, 0 failures**.
-
-## 7. Commands and actual exit status
-
-| Command | Exit | Result |
-|---|---|---|
-| `bun add @freebuff/auth` | 0 | `@freebuff/auth@0.1.0` (contract package) |
-| `wrangler d1 create manhwa-studio` | 0 | database created (WNAM) |
-| `wrangler d1 migrations apply --local` | **0** | 10 commands |
-| `wrangler d1 migrations apply --remote` | **0** | 10 commands on the real database |
-| remote `sqlite_master` query | success | tables verified (§4) |
-| `bun run lint` (after 3 iteration fixes) | **0** | no diagnostics |
-| `bun run test` | **0** | 46 pass / 0 fail |
-| `bun run build` | **0** | frontend unaffected |
-| `bun install --frozen-lockfile` | **0** | lockfile consistent |
-| `wrangler dev` probes | — | §5 evidence |
-| OAuth login flow / tenant API writes | **NOT RUN** | auth client not registered (§3); API data routes are TASK 08 |
-
-## 8. Failures found and fixed (cause-level, no suppression)
-
-1. Test expected D1's internal `d1_migrations` table in a plain-SQLite run — corrected the expectation (the real remote DB has it; verified live).
-2. `bun:sqlite` typing: introduced one documented `rows<T>()` assertion helper instead of scattering casts.
-3. Worker handler typing around `wrap()` — made inner handlers consistently async.
-
-## 9. Security checks
-
-- Tenant isolation is enforced by schema (FKs/cascades) and tested at the query-primitive level; API routes that will read data must use the tested sub-keyed patterns.
-- No secret values printed/committed; the API token only ever appears in `Authorization` headers built from shell variables.
-- Supabase remains **intentionally unused** (single-role decision: none for now — D1 is the authority; pooler reachability was verified in TASK 06).
-
-## 10. Migrations / rollback
-
-Migration applied remotely is create-only. Rollback: no down-migrations exist yet — **required by policy before any future destructive migration**; the database currently holds no data.
-
-## 11. Status
-
-**PARTIAL (strongly):** everything in TASK 07's scope except live sign-in is done and verified; auth completion is blocked on an owner-only action (§3) with exact unblock steps documented.
+R2 was the one resource whose enablement was missing on the account. It's no longer missing: the binding is wired and the health check confirms it. This handoff exists so the next task can drop straight into route implementation without re-fighting the 10042 mystery.
