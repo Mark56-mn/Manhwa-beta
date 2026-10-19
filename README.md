@@ -48,10 +48,12 @@ bun run build                   # output in dist/
 
 ## Deployment
 
-- **No deployment configuration exists in this repository** — no CI workflow, no `wrangler.toml`, no
-  container or hosting manifests. Deployment has not been verified and must not be claimed to work.
-- The target architecture (blueprint TASK 06+) is Cloudflare Workers (Hono) + D1 + R2 with
-  Freebuff/OIDC authentication; the deploy procedure will be documented there as `TASK 06` deliverables.
+- **API worker:** `wrangler.toml` + `worker/src/` define the Hono API (blueprint TASK 06 foundation).
+  Verified locally with `bunx wrangler dev --port 8787` (`/healthz` → 200, `/readyz` reports real
+  binding status). **No deployment has been performed** — see `docs/DEPLOYMENT.md` for the documented
+  (unexecuted) deploy and rollback procedures.
+- **Frontend:** static build (`bun run build` → `dist/`); hosting not configured yet.
+- D1/R2 bindings attach in later tasks (07/12) once their resources exist and are verified.
 
 ## Secrets and environment
 
@@ -66,9 +68,13 @@ bun run build                   # output in dist/
 
 ```
 src/                 React app (App shell, components, demo seed data, types)
+worker/              Cloudflare Worker API (Hono): health/readiness endpoints
+tests/               bun test suites (honesty guards, sanitizer, seed data)
+scripts/             Operator helpers (e.g. store-secrets.sh)
 tasks/               Authoritative task definitions + roadmap reconciliation
 docs/audits/         Implementation reports + capability inventory (per task)
 docs/handoffs/       Handoff documents between tasks (read before starting any task)
+docs/DEPLOYMENT.md   Deploy/rollback procedure (documented, not executed)
 ```
 
 ## Workflow rules (from the blueprint)

@@ -1,0 +1,27 @@
+# Manhwa Studio API — Cloudflare Worker (blueprint TASK 06 foundation)
+#
+# Environment separation conventions:
+#   - [vars]    : non-secret public configuration only (never credentials).
+#   - Secrets   : set with `wrangler secret put <NAME>`; values never touch this
+#                 file or the repository (store them in the platform secret
+#                 manager or the gitignored .env.local for local use).
+#   - Bindings  : declared here only once the resource exists and is verified.
+#                 Never claim D1/R2 is connected before a real query succeeds.
+
+name = "manhwa-studio-api"
+main = "worker/src/index.ts"
+compatibility_date = "2025-09-01"
+
+# Planned bindings (commented until created and verified):
+#
+# TASK 07 — D1 (token permission confirmed 19 Oct 2026; 0 databases exist yet):
+# [d1_databases]
+# binding = "DB"
+# database_name = "manhwa-studio"
+# database_id = "<created in TASK 07>"
+#
+# TASK 12 — R2 (BLOCKED: current API token lacks R2 permission, API error 10042;
+# owner must add "Workers R2 Storage: Edit" to the token first):
+# [[r2_buckets]]
+# binding = "FILES"
+# bucket_name = "manhwa-studio-assets"

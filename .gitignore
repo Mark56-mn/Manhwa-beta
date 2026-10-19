@@ -9,3 +9,6 @@ coverage/
 .dev.vars*
 *.pem
 *.key
+
+# wrangler local state (created by wrangler dev; never commit)
+.wrangler/
