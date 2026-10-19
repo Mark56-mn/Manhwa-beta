@@ -19,11 +19,12 @@ binding = "DB"
 database_name = "manhwa-studio"
 database_id = "d9557398-b439-463a-b5aa-a3703d5c3fdb"
 
-# R2 — still blocked: the API token lacks R2 permission (API error 10042 at
-# last audit on 19 Oct 2026). Owner must add "Workers R2 Storage: Edit".
-# [[r2_buckets]]
-# binding = "FILES"
-# bucket_name = "manhwa-studio-assets"
+# R2 — enabled 19 Oct 2026 (account-level R2 subscription activated by owner).
+# Bucket `manhwa-studio-assets` created 19 Oct 2026 (WNAM, Standard) on account
+# `78bd087d85c6604c2dc25195a80eac91`. A real list call now returns 200.
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "manhwa-studio-assets"
 
 # Sign in with Freebuff — public config, no secrets. Register with the owner's
 # Freebuff login (`npx @freebuff/auth register ...`) or Freebuff Desktop, then

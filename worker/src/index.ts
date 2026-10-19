@@ -18,7 +18,7 @@ app.get('/', (c) =>
     service: 'manhwa-studio-api',
     status: 'ok',
     phase: 'TASK-07 D1 + tenancy foundation',
-    routes: ['/healthz', '/readyz', '/api/v1/me', '/auth/freebuff/*']
+    routes: ['/healthz', '/readyz', '/api/v1/me', '/api/v1/assets', '/auth/freebuff/*']
   })
 );
 
@@ -49,8 +49,8 @@ app.get('/readyz', async (c) => {
   }
 
   checks.r2 = env.FILES
-    ? { status: 'ok', detail: 'R2 binding attached.' }
-    : { status: 'not_configured', detail: 'No R2 binding yet (TASK 12; API token currently lacks R2 permission).' };
+    ? { status: 'ok', detail: 'R2 binding attached (bucket manhwa-studio-assets).' }
+    : { status: 'not_configured', detail: 'No R2 binding attached (TASK 12).' };
 
   checks.auth = authConfigured(env)
     ? { status: 'ok', detail: 'Sign in with Freebuff client configured.' }
@@ -58,6 +58,14 @@ app.get('/readyz', async (c) => {
 
   const d1Ok = checks.d1.status === 'ok';
   return c.json({ status: d1Ok ? 'ready' : 'degraded', checks }, d1Ok ? 200 : 503);
+});
+
+/**
+ * Asset placeholder route: TASK 12 implementation begins here.
+ */
+app.get('/api/v1/assets', async (c) => {
+  // ASSET ROUTE PLACEHOLDER - TASK 12 implementation begins here.
+  return c.json({ error: 'not_ready', detail: 'Asset endpoints are being wired now.' }, 501);
 });
 
 /**
@@ -78,7 +86,7 @@ app.all('/auth/freebuff/*', (c) =>
 
 /**
  * Protected example route: the pattern every future user-data route must
- * follow — server-side getUser, 401 when signed out, personalized responses
+ * follow - server-side getUser, 401 when signed out, personalized responses
  * never cached. Future state-changing routes must additionally pass
  * isSameOriginRequest(request, env.APP_ORIGIN) and authorize against rows
  * keyed by user.sub.

@@ -27,7 +27,21 @@
 | D1 list | allowed | allowed |
 | Workers scripts | allowed | allowed |
 
-**Owner action needed:** the R2 permission did not take effect — in the Cloudflare dashboard (My Profile → API Tokens → edit), add the **Workers R2 Storage** permission group (Edit), ensure the token policy is **saved**, and I will re-verify. R2 is not needed until TASK 12.
+**Owner action needed:** until 19 Oct 2026 the API returned error 10042 ("Please enable R2 through the Cloudflare Dashboard"), because R2 was not enabled on the account. The owner activated R2; the token already carried **Workers R2 Storage Write/Read** on this account (verified by listing account tokens). Now `GET /accounts/{id}/r2/buckets` returns 200, bucket `manhwa-studio-assets` is created (WNAM, Standard), and the worker's `/readyz` reports `r2: ok` in workerd. R2 is not needed until TASK 12.
+
+### 2b. R2 (live correction)
+
+The earlier finding — that the API token lacked R2 permission — was the wrong diagnosis. The token already had **Workers R2 Storage Write/Read** on this account (verified by listing account tokens). The real blocker was the account not having R2 enabled: `GET /accounts/{id}/r2/buckets` returned HTTP 403, error 10042, `"Please enable R2 through the Cloudflare Dashboard."`. That code is an account-subscription/entitlement failure, not a per-token authorization failure, and it is checked before token permissions — so adding token permissions would not have helped either.
+
+After the owner enabled R2 on the account:
+
+- `GET /accounts/{id}/r2/buckets` now returns 200.
+- Bucket `manhwa-studio-assets` created (WNAM, Standard, default jurisdiction) and re-listed to confirm.
+- Object end-to-end proof over the Cloudflare REST API: PUT `assets/demo.txt`, GET it back, then DELETE it — each returned HTTP 200.
+- Worker binding `FILES` wired in `wrangler.toml`; `/readyz` reports `r2: { status: 'ok', detail: 'R2 binding attached (bucket manhwa-studio-assets).' }` in real workerd.
+- No S3 endpoint or account ID is needed externally — the Worker binding and the Cloudflare REST API both use the account id already in `wrangler.toml`.
+
+R2 is not needed until TASK 12.
 
 ## 3. Authentication — validated contract, blocked on owner registration
 
@@ -47,7 +61,7 @@
 | Probe | Response |
 |---|---|
 | `/healthz` | **200** `{"status":"ok"}` |
-| `/readyz` | **200** `{"status":"ready","checks":{"d1":{"status":"ok","detail":"D1 binding answered SELECT 1."},"r2":{"status":"not_configured",...},"auth":{"status":"not_configured",...}}}` |
+| `/readyz` | **200** `{"status":"ready","checks":{"d1":{"status":"ok","detail":"D1 binding answered SELECT 1."},"r2":{"status":"ok","detail":"R2 binding attached (bucket manhwa-studio-assets)."},"auth":{"status":"not_configured",...}}}` (R2 fixed 19 Oct 2026; was `not_configured` at TASK 07 write time) |
 | `/api/v1/me` | **503** `{"error":"auth_not_configured",...}` |
 | `/auth/freebuff/signin` | **503** `auth_not_configured` with owner instructions |
 

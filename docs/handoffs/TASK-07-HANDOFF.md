@@ -21,7 +21,7 @@
 ## 3. What is blocked / NOT done
 
 - **Live sign-in (owner-only):** the Freebuff OIDC client must be registered with **the owner's login** — either `npx @freebuff/auth register --project manhwa-studio --name "Manhwa Studio" --environment development --redirect-uri http://localhost:8788/auth/freebuff/callback`, or authorizing a Freebuff Sites project (`sites_enable_auth`). Then set the three public vars (wrangler `[vars]`). **Never hand-roll OAuth; never ask for/accept Freebuff platform tokens in this repo.**
-- **R2 (TASK 12):** the owner's permission grant did **not** take effect — token still gets API error 10042. Add **Workers R2 Storage: Edit**, save the policy, then re-audit.
+- **R2 (TASK 12):** now live. The account-level R2 entitlement was missing (API error 10042), which is **not** a token-permission problem — both account tokens already had **Workers R2 Storage Write/Read**. The owner activated R2 on the account; bucket `manhwa-studio-assets` was created (WNAM, Standard), end-to-end verified (REST create/read/delete → 200), and the worker's `/readyz` reports `r2: ok` in workerd. The asset upload/download route stubs live in `worker/src/index.ts` (501 placeholder) and a smoke test in `tests/asset.test.ts`.
 - **Worker deployment:** not performed (needs explicit authorization; procedure in `docs/DEPLOYMENT.md`).
 - **API data routes / job model:** TASK 08. Follow the tested patterns: server-side `getUser`, rows keyed by `user.sub`, `isSameOriginRequest` on every mutation, `Cache-Control: private, no-store`, tenant-scoped SQL like the joins proven in `tests/tenancy.test.ts`.
 - **Down-migrations:** not written yet — mandatory before any destructive schema change.

@@ -23,7 +23,7 @@ export interface R2BucketLike {
 export interface Env {
   /** D1 database binding — created and migrated in TASK 07. */
   DB?: D1DatabaseLike;
-  /** R2 bucket binding — attached in TASK 12 (API token still lacks R2 scope). */
+  /** R2 bucket binding — created + verified in TASK 12 (bucket `manhwa-studio-assets`). */
   FILES?: R2BucketLike;
 
   /**

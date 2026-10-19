@@ -24,7 +24,7 @@
 ## 3. What is NOT done / blocked
 
 - **TASK 07** (next): authentication (Freebuff/OIDC contract must be validated — stop and report if it's unavailable), tenant isolation, **D1 database creation + initial migrations**, `/readyz` flip to hard-gate.
-- **R2 (TASK 12) BLOCKED:** owner must add **Workers R2 Storage: Edit** to the Cloudflare token (currently denied, error 10042).
+- **R2 (TASK 12) UNBLOCKED:** the blocker was the account-level R2 entitlement (API error 10042), not the token — both account tokens already included **Workers R2 Storage Write/Read**. The owner activated R2; bucket `manhwa-studio-assets` created (WNAM, Standard) and verified (REST create/read/delete 200); worker `/readyz` now reports `r2: ok` in workerd. See TASK-07 handoff.
 - **Supabase role decision** pending (TASK 07): decide its single justified role or leave unused; default architecture is D1 + R2. A live DB test should accompany that decision.
 - Deployment (needs owner authorization; procedure in `docs/DEPLOYMENT.md`), CI first run, frontend hosting.
 - Owner reminders: rotate the Cloudflare token and Supabase password if the earlier scrollback exposure wasn't already addressed (they may have rotated before storing — unknown).

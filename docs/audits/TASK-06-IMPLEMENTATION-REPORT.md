@@ -33,10 +33,10 @@
 | `GET /accounts/{id}/d1/database` | **allowed** (0 databases — none exist yet) |
 | `GET /accounts/{id}/workers/scripts` | **allowed** (0 scripts) |
 | `GET /zones` | **allowed** (1 zone) |
-| `GET /accounts/{id}/r2/buckets` | **DENIED — API error 10042** (insufficient permission) |
+| `GET /accounts/{id}/r2/buckets` | **DENIED — API error 10042** ("Please enable R2 through the Cloudflare Dashboard" — an account entitlement failure, not a token-permission failure; the token already had Workers R2 Storage Write/Read). Later, after the owner activated R2 on the account, this endpoint returned 200 and bucket `manhwa-studio-assets` was created and verified (REST create/read/delete 200). |
 | `GET /accounts/{id}/container` | route not available (not needed) |
 
-**Owner action recorded:** add **Workers R2 Storage: Edit** to the token before TASK 12.
+**Owner action recorded (later corrected):** add **Workers R2 Storage: Edit** to the token before TASK 12. **Correction 19 Oct 2026:** this was the wrong diagnosis. The token already had Workers R2 Storage Write/Read; the real blocker was the account lacking an R2 subscription (error 10042). After the owner activated R2, bucket creation and the worker R2 health check both pass. No action remains for TASK 12 on the permission side.
 
 **Supabase connection string:** `SUPABASE_DB_URL` starts `postgresql://`, host `aws-1-eu-west-1.pooler.supabase.com:6543` (transaction pooler), project ref matches `SUPABASE_URL`; **TCP reachability confirmed**. No Postgres session was attempted: connecting is deferred until TASK 07 decides Supabase's single approved role (default remains D1 + R2 per the blueprint; Supabase must not become a second source of truth).
 
@@ -54,7 +54,7 @@
 |---|---|
 | `GET /` | `{"service":"manhwa-studio-api","status":"ok","phase":"TASK-06 foundation","routes":["/healthz","/readyz"]}` |
 | `GET /healthz` | **HTTP 200** `{"status":"ok"}` |
-| `GET /readyz` | `{"status":"degraded","checks":{"d1":{"status":"not_configured","detail":"No D1 binding attached yet (database created in TASK 07)."},"r2":{"status":"not_configured","detail":"No R2 binding attached yet (TASK 12; API token currently lacks R2 permission)."}}}` |
+| `GET /readyz` | At TASK 06 write time: degraded with `r2: { status: 'not_configured', detail: 'No R2 binding attached yet (TASK 12; API token currently lacks R2 permission).' }`. **19 Oct 2026 update:** R2 now enabled and bound; in workerd `/readyz` returns `ready` with `r2: { status: 'ok', detail: 'R2 binding attached (bucket manhwa-studio-assets).' }`. |
 
 Notable: `wrangler dev` auto-loads `.env.local` and prints the variables as **`(hidden)`** — values never appeared in any output. Local workerd process stopped and port confirmed closed afterwards.
 
