@@ -11,17 +11,24 @@
 name = "manhwa-studio-api"
 main = "worker/src/index.ts"
 compatibility_date = "2025-09-01"
+account_id = "78bd087d85c6604c2dc25195a80eac91"
 
-# Planned bindings (commented until created and verified):
-#
-# TASK 07 — D1 (token permission confirmed 19 Oct 2026; 0 databases exist yet):
-# [d1_databases]
-# binding = "DB"
-# database_name = "manhwa-studio"
-# database_id = "<created in TASK 07>"
-#
-# TASK 12 — R2 (BLOCKED: current API token lacks R2 permission, API error 10042;
-# owner must add "Workers R2 Storage: Edit" to the token first):
+# D1 (created 19 Oct 2026, region WNAM; migrations in ./migrations)
+[[d1_databases]]
+binding = "DB"
+database_name = "manhwa-studio"
+database_id = "d9557398-b439-463a-b5aa-a3703d5c3fdb"
+
+# R2 — still blocked: the API token lacks R2 permission (API error 10042 at
+# last audit on 19 Oct 2026). Owner must add "Workers R2 Storage: Edit".
 # [[r2_buckets]]
 # binding = "FILES"
 # bucket_name = "manhwa-studio-assets"
+
+# Sign in with Freebuff — public config, no secrets. Register with the owner's
+# Freebuff login (`npx @freebuff/auth register ...`) or Freebuff Desktop, then
+# set as wrangler [vars] or `wrangler secret`-free deployment vars:
+# [vars]
+# FREEBUFF_CLIENT_ID = "<from provisioning>"
+# FREEBUFF_ISSUER    = "<from provisioning>"
+# APP_ORIGIN         = "https://<deployed-origin>"

@@ -1,17 +1,18 @@
 # Deployment & Rollback — Manhwa Studio API Worker
 
-**Status (19 October 2026): procedure DOCUMENTED, NOT EXECUTED.** No deployment has been made; nothing
-on Cloudflare has been created or changed by this repository. Everything below was derived from the
-verified local setup and the audited token permissions.
+**Status (19 October 2026): D1 provisioned and migrated; the Worker itself is NOT deployed.** The
+backend schema exists on the owner's Cloudflare account; no Worker script, bucket, DNS, or zone change
+has been made.
 
 ## What exists today
 
 | Piece | State |
 |---|---|
-| `wrangler.toml` + `worker/src/` (Hono API) | in repo, verified locally with `wrangler dev` (workerd): `/healthz` → 200 |
-| Cloudflare API token | audited 19 Oct 2026: valid; **account read ✓, Workers scripts ✓, D1 ✓, zones ✓ (1 zone), R2 ✗ (error 10042)** |
-| D1 database | **does not exist yet** (planned TASK 07) |
-| R2 bucket | **blocked** until the owner adds R2 permission to the token (planned TASK 12) |
+| `wrangler.toml` + `worker/src/` (Hono API) | in repo, verified locally with `wrangler dev` (workerd): `/healthz` → 200, `/readyz` → 200 `ready` with real `d1: ok` |
+| Cloudflare API token | audited 19 Oct 2026 (twice): valid; **account read ✓, Workers scripts ✓, D1 ✓, zones ✓ (1 zone), R2 ✗ (error 10042, still denied after the owner's grant attempt)** |
+| D1 database `manhwa-studio` | **CREATED** (id `d9557398-b439-463a-b5aa-a3703d5c3fdb`, region WNAM); `migrations/0001_init_tenancy.sql` applied **locally and remotely**; remote tables verified live |
+| R2 bucket | **blocked** until the token gains R2 permission (planned TASK 12) |
+| Sign in with Freebuff (OIDC) | SDK installed and mounted, but **no client registered** — registration requires the owner's Freebuff login; routes answer `auth_not_configured` (503) |
 | Worker deployment | **none** |
 
 ## Prerequisites
@@ -39,11 +40,16 @@ secret-looking values in its own output (verified locally: values printed as `(h
 
 ## Bindings (created only when their task lands)
 
-- **D1 (TASK 07):** `bunx wrangler d1 create manhwa-studio` → paste the returned `database_id` into the
-  `[d1_databases]` block in `wrangler.toml` → apply migrations → redeploy → confirm `/readyz` reports
-  `d1: ok` from a real `SELECT 1`.
+- **D1 (TASK 07 — DONE):** database `manhwa-studio` created (WNAM), binding wired in `wrangler.toml`,
+  `0001_init_tenancy.sql` applied locally and remotely; `/readyz` now hard-gates on a real `SELECT 1`.
+  New migrations: add `migrations/000N_*.sql`, then run `bunx wrangler d1 migrations apply manhwa-studio --local`
+  and (authorized) `--remote`.
 - **R2 (TASK 12):** requires the token to gain "Workers R2 Storage: Edit" first (currently denied,
-  API error 10042).
+  API error 10042 — re-checked 19 Oct 2026 after the owner's grant attempt).
+- **Sign in with Freebuff (TASK 07 auth):** the owner registers the client with their Freebuff login —
+  `npx @freebuff/auth register --project manhwa-studio --name "Manhwa Studio" --environment development --redirect-uri http://localhost:8788/auth/freebuff/callback` —
+  then set `FREEBUFF_CLIENT_ID` / `FREEBUFF_ISSUER` / `APP_ORIGIN` as wrangler `[vars]` (public config,
+  no secrets exist for this SDK).
 - **Secrets (later tasks):** `bunx wrangler secret put <NAME>` — values are typed interactively (not
   echoed) and stored server-side only.
 

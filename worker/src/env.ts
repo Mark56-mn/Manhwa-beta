@@ -1,13 +1,19 @@
 /**
- * Worker environment bindings (blueprint TASK 06 conventions).
+ * Worker environment bindings (blueprint TASK 06/07 conventions).
  *
  * A binding is declared only once the resource exists and has been verified.
  * Narrow structural types are used so the worker typechecks without pulling
  * in a global workers-types configuration for the whole repository.
  */
 
+export interface D1StatementLike {
+  bind(...values: unknown[]): D1StatementLike;
+  first<T>(): Promise<T | null>;
+  run(): Promise<unknown>;
+}
+
 export interface D1DatabaseLike {
-  prepare(sql: string): { first<T>(): Promise<T | null> };
+  prepare(sql: string): D1StatementLike;
 }
 
 export interface R2BucketLike {
@@ -15,8 +21,17 @@ export interface R2BucketLike {
 }
 
 export interface Env {
-  /** D1 database binding — attached in TASK 07 once the database exists. */
+  /** D1 database binding — created and migrated in TASK 07. */
   DB?: D1DatabaseLike;
-  /** R2 bucket binding — attached in TASK 12 (API token currently lacks R2 scope). */
+  /** R2 bucket binding — attached in TASK 12 (API token still lacks R2 scope). */
   FILES?: R2BucketLike;
+
+  /**
+   * Sign in with Freebuff (public configuration, not secrets; no client
+   * secret exists). Minted by the project owner via `npx @freebuff/auth
+   * register` or Freebuff Desktop — never invented by this codebase.
+   */
+  FREEBUFF_CLIENT_ID?: string;
+  FREEBUFF_ISSUER?: string;
+  APP_ORIGIN?: string;
 }
