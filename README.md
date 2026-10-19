@@ -18,6 +18,7 @@ These commands were run in this repository on 19 October 2026 with the exit code
 |---|---|---|
 | Install dependencies | `bun install --frozen-lockfile` | 0 |
 | Typecheck | `bun run lint` (runs `tsc --noEmit`) | 0 |
+| Tests | `bun run test` (bun test, 34 tests) | 0 |
 | Production build | `bun run build` (Vite) | 0 |
 | Dev server | `bun run dev` (serves `0.0.0.0:3000`) | 0 (HTTP 200 verified) |
 
@@ -34,8 +35,16 @@ bun run build                   # output in dist/
 
 ## Testing and CI
 
-- **There is no test suite and no CI configuration yet** (roadmap TASK 05). Do not report tests as
-  passing; the honesty checks used so far are documented greps in the task reports under `docs/audits/`.
+- **Tests:** `bun run test` runs 34 tests across three suites:
+  - `tests/honesty.test.ts` — scans application source and fails if fake-success strings, network calls,
+    non-literal/unapproved `localStorage` keys, or missing honest labels ever reappear (automated version
+    of the TASK 02/03 manual greps).
+  - `tests/storage.test.ts` — the stored-project sanitizer (resets only fabricated publication fields,
+    never mutates input, tolerates malformed stored data).
+  - `tests/seed-data.test.ts` — demo seed data makes no publication claims and has a consistent shape.
+- **CI:** `.github/workflows/ci.yml` runs install → lint → test → build on pushes and pull requests.
+  **Configured but not yet executed** — it runs on GitHub once the changes are pushed; do not report CI
+  as passing until a real run has been observed.
 
 ## Deployment
 

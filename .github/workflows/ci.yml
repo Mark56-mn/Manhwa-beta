@@ -1,0 +1,34 @@
+name: CI
+
+# Quality gates for Manhwa Studio (blueprint TASK 05).
+# NOTE: this workflow is configured but has NOT been executed yet — it first
+# runs when these changes are pushed to GitHub. Do not report CI as passing
+# until a real run is observed.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  checks:
+    name: install → lint → test → build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies (lockfile-frozen)
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run lint
+
+      - name: Tests
+        run: bun run test
+
+      - name: Production build
+        run: bun run build

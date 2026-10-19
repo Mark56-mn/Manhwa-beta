@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Project } from './types/manhwa';
 import { INITIAL_PROJECTS } from './data/mockProjects';
+import {
+  PROJECTS_STORAGE_KEY,
+  LEGACY_PROVIDER_KEY,
+  sanitizeStoredProjects
+} from './lib/storage';
 import { Navbar } from './components/Navbar';
 import { GettingStartedModal } from './components/GettingStartedModal';
 import { ProjectHub } from './components/ProjectHub';
@@ -13,27 +18,9 @@ import { ApiKeyModal } from './components/ApiKeyModal';
 import { ProjectAnalytics } from './components/ProjectAnalytics';
 import { BookOpen, Film, Sparkles, ArrowLeft } from 'lucide-react';
 
-const FABRICATED_VIDEO_ID = 'dQw4w9WgXcQ';
-
-/**
- * Earlier demo builds wrote a hardcoded sample YouTube video ID into stored
- * approval records. Reset only those provably-fabricated publication fields;
- * never touch or delete any other user data.
- */
-function sanitizeStoredProjects(projects: Project[]): Project[] {
-  return projects.map((project) => ({
-    ...project,
-    approvals: (project.approvals || []).map((approval) =>
-      approval.youtubeVideoId === FABRICATED_VIDEO_ID
-        ? { ...approval, youtubeUploadState: 'not_uploaded' as const, youtubeVideoId: undefined }
-        : approval
-    )
-  }));
-}
-
 export default function App() {
   const [projects, setProjects] = useState<Project[]>(() => {
-    const saved = localStorage.getItem('manhwa_studio_projects');
+    const saved = localStorage.getItem(PROJECTS_STORAGE_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -63,12 +50,12 @@ export default function App() {
   useEffect(() => {
     // Task 01 removed client-side provider key storage. Purge any key left behind by
     // earlier versions so credentials cannot linger in browser storage (no value read).
-    localStorage.removeItem('manhwa_gemini_key');
+    localStorage.removeItem(LEGACY_PROVIDER_KEY);
   }, []);
 
   useEffect(() => {
     try {
-      localStorage.setItem('manhwa_studio_projects', JSON.stringify(projects));
+      localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
     } catch (e) {
       // Storage can be unavailable (private mode, quota). Report honestly instead of crashing.
       console.error('Failed to persist projects to localStorage', e);
