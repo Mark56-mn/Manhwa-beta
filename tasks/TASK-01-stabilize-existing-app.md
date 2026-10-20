@@ -34,7 +34,7 @@ This is a multi-customer SaaS product from day one. Do not convert it into a per
 - Identify all mock data, fake progress, hardcoded provider responses, simulated agents, and placeholder integrations.
 - Clearly label demonstration functionality as **Demo** or **Not connected**.
 - Never report a task, provider connection, media generation, upload, or publication as successful unless a real operation has succeeded and its result has been verified.
-- Replace misleading success states with explicit statuses such as `not_configured`, `demo`, `pending`, `running`, `succeeded`, `failed`, or `waiting_for_approval`, as appropriate.
+- Replace misleading success states with explicit statuses such as `not_configured`, `demo`, `pending`, `running`, `succeeded`, `failed`, or `waiting_for Approval`, as appropriate.
 - Do not claim that agents are autonomously cooperating unless a real orchestration/task implementation exists.
 
 ### C. Remove unsafe client-side credential handling
@@ -52,7 +52,7 @@ This is a multi-customer SaaS product from day one. Do not convert it into a per
 - Audit project persistence and identify where browser `localStorage` is currently used.
 - Do not present browser-local storage as cloud synchronization or multi-device persistence.
 - If cloud persistence is not yet configured, clearly communicate that data is currently local/demo-only and preserve existing user data during the transition.
-- Do not introduce Firebase dependencies or production database writes blindly in this task. The next foundation task will implement Firebase Authentication, Firestore, authorization, and migration deliberately.
+- Do not introduce Firebase dependencies or production database writes blindly in this task.
 - Never erase existing projects or overwrite real user data during cleanup.
 
 ### E. Add practical verification
@@ -109,18 +109,6 @@ Do not duplicate files if an equivalent canonical location already exists; updat
 
 ## Next task after completion
 
-**TASK 02 — Firebase foundation:** implement Firebase Authentication and Firestore persistence for the multi-tenant SaaS, including user/project ownership, secure server-side authorization, Firestore security rules, environment configuration, and tests. Do not start Task 02 until Task 01's report clearly documents the baseline and current code state.
+**SUPERSEDED (20 October 2026):** The Firebase foundation described below no longer matches the agreed architecture. Per the consolidated blueprint the sequence is now **Cloudflare Worker/Hono + D1/R2 tasks** (see `tasks/ROADMAP-RECONCILIATION.md`), not Firebase/Firestore. Do not implement Firebase unless the owner explicitly changes the architecture decision.
 
-## Required final response
-
-Return:
-1. What you inspected.
-2. What you changed (specific files).
-3. Baseline and final checks, with exact results.
-4. Security and mock/demo issues found.
-5. Remaining known gaps.
-6. Commit SHA and branch name.
-7. Confirmation that the report and handoff exist.
-8. The exact next-task instruction.
-
-If a required action could not be completed, say so explicitly. Never claim completion based only on a plan.
+The immediate next step after this verification/handoff is to **record the actual results here** and **leave an accurate handoff**, not to start a foundation task until the owner confirms the next committed work.
