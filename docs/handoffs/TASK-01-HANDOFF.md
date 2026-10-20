@@ -4,7 +4,11 @@
 **To:** Next Manhwa Studio engineering agent / owner
 **Date:** 20 October 2026
 **Branch:** `task/TASK-01-corrective-review`
-**PR under review:** `Mark56-mn/Manhwa-beta/pull/1`
+**PR under review:** `Mark56-mn/Manhwa-beta/pull/1` — **merged already** (merge commit `d460ad1`; `main` is at `49ed52c`)
+
+## PR status — read this first
+
+PR #1 was merged before this pass, so it cannot accept new commits. The work below is committed on `task/TASK-01-corrective-review` as `fdd4546`, one commit ahead of `main`. **It is not in `main` yet.** Land it with a new pull request from that branch (or an owner-approved fast-forward of `main`). Do not force-push and do not commit directly to `main`.
 
 ## State of the branch now
 
@@ -19,7 +23,7 @@ Honest by construction:
 - Getting-started copy and page metadata no longer claim live Gemini keys, OAuth, or YouTube publishing.
 - `src` and the built bundle contain no provider key literals.
 
-## What changed in this pass (`49ed52c` plus the new commit)
+## What changed in this pass (`49ed52c` is on main; `fdd4546` is branch-only)
 
 `49ed52c` replaced the mock YouTube connect/upload flow in `ApprovalCenter` with the honest disconnected screen.
 

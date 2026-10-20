@@ -2,8 +2,8 @@
 
 **Product:** Manhwa Studio
 **Repository:** `Mark56-mn/Manhwa-beta`
-**PR under verification:** `Mark56-mn/Manhwa-beta/pull/1`
-**Review branch:** `task/TASK-01-corrective-review`
+**PR under verification:** `Mark56-mn/Manhwa-beta/pull/1` — **already merged** (merge commit `d460ad1` into `main`; `main` now at `49ed52c`)
+**Review branch:** `task/TASK-01-corrective-review` (one commit ahead of `main` after this pass)
 **Review date:** 20 October 2026
 **Runtime:** Bun 1.4.3, Vite 8.3.4, TypeScript 7.0.2
 
@@ -119,10 +119,12 @@ Sample projects, story bible editor, episode editor, project hub, analytics, and
 
 ## Commit / branch
 
-- Branch: `task/TASK-01-corrective-review` (the branch behind PR #1)
-- Prior commit on the branch: `49ed52c` — honest `ApprovalCenter` disconnected state
-- This session adds one commit on the same branch with the changes above and pushes it so PR #1 updates.
-- `main` is not modified and PR #1 is not merged.
+- Branch: `task/TASK-01-corrective-review`
+- Prior commit on the branch: `49ed52c` — honest `ApprovalCenter` disconnected state; this commit is now also on `main` because PR #1 was merged.
+- This session adds `fdd4546` on the same branch and pushes it.
+- **PR #1 could not be updated:** it was already merged into `main` at `d460ad1` before this pass, and `main` then advanced to `49ed52c`. A merged PR cannot receive new commits. `fdd4546` is therefore on `task/TASK-01-corrective-review` only and is *not* in `main`.
+- `main` still contains the fabricated sample approval (`private_uploaded` + `dQw4w9WgXcQ`), no storage helper, and no tests. A new pull request from the task branch is required to land this fix.
+- `main` was not modified by this session. No pull request was merged by this session.
 
 ## Exact next-task instruction
 
