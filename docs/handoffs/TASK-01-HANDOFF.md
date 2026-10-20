@@ -8,7 +8,7 @@
 
 ## PR status — read this first
 
-PR #1 was merged before this pass, so it cannot accept new commits. The work below is committed on `task/TASK-01-corrective-review` as `fdd4546`, one commit ahead of `main`. **It is not in `main` yet.** Land it with a new pull request from that branch (or an owner-approved fast-forward of `main`). Do not force-push and do not commit directly to `main`.
+PR #1 was merged before this pass, so it cannot accept new commits. The work below is committed on `task/TASK-01-corrective-review` as `fdd4546` plus the docs commit `4fc643b`, two commits ahead of `main`. **It is not in `main` yet.** Land it with a new pull request from that branch (or an owner-approved fast-forward of `main`). Do not force-push and do not commit directly to `main`.
 
 ## State of the branch now
 

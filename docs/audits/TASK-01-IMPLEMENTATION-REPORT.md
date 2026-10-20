@@ -121,7 +121,7 @@ Sample projects, story bible editor, episode editor, project hub, analytics, and
 
 - Branch: `task/TASK-01-corrective-review`
 - Prior commit on the branch: `49ed52c` — honest `ApprovalCenter` disconnected state; this commit is now also on `main` because PR #1 was merged.
-- This session adds `fdd4546` on the same branch and pushes it.
+- This session adds `fdd4546` (code + tests + docs) and `4fc643b` (PR-status correction) on the same branch and pushes both.
 - **PR #1 could not be updated:** it was already merged into `main` at `d460ad1` before this pass, and `main` then advanced to `49ed52c`. A merged PR cannot receive new commits. `fdd4546` is therefore on `task/TASK-01-corrective-review` only and is *not* in `main`.
 - `main` still contains the fabricated sample approval (`private_uploaded` + `dQw4w9WgXcQ`), no storage helper, and no tests. A new pull request from the task branch is required to land this fix.
 - `main` was not modified by this session. No pull request was merged by this session.
