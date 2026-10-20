@@ -3,7 +3,7 @@
 **From:** Second verification + hardening pass
 **To:** Next Manhwa Studio engineering agent / owner
 **Date:** 20 October 2026
-**Branch:** `task/TASK-01-corrective-review` @ `b6f02ae` (pushed; five commits ahead of `main`)
+**Branch:** `task/TASK-01-corrective-review` (pushed; five commits ahead of `main`; the tip is the commit containing this file — check with `git ls-remote origin refs/heads/task/TASK-01-corrective-review`)
 **PR under review:** `Mark56-mn/Manhwa-beta/pull/1` — **closed and merged** (`merged: true`, `2026-10-20T09:04:52Z`)
 
 ## Read this first — the PR cannot be updated

@@ -3,7 +3,7 @@
 **Product:** Manhwa Studio
 **Repository:** `Mark56-mn/Manhwa-beta`
 **PR under verification:** `Mark56-mn/Manhwa-beta/pull/1` — **closed and merged** (`merged: true`, `merged_at 2026-10-20T09:04:52Z`, merge commit `d460ad1`; base `main` was `876907e` at merge time and is now `49ed52c`)
-**Review branch:** `task/TASK-01-corrective-review` — `77142bd` at verification time, docs commit `b6f02ae` after it; five commits ahead of `main`
+**Review branch:** `task/TASK-01-corrective-review` — verified at `77142bd`; five commits ahead of `main` (run `git ls-remote origin refs/heads/task/TASK-01-corrective-review` for the current tip, which is this docs commit)
 **Review date:** 20 October 2026
 **Runtime:** Bun 1.4.3, Vite 8.3.4, TypeScript 7.0.2
 
@@ -126,8 +126,8 @@ No project or approval is deleted; sanitizing only touches approvals carrying th
 
 ## Commit / branch
 
-- Branch: `task/TASK-01-corrective-review`, head `b6f02ae` (pushed; verified with `git ls-remote`).
-- `main` is at `49ed52c` and was not modified. Branch commits `fdd4546`, `4fc643b`, `7568a79`, `77142bd`, `b6f02ae` are **not** in `main`.
+- Branch: `task/TASK-01-corrective-review`, pushed; the tip that contains this file is the current branch head (`git ls-remote origin refs/heads/task/TASK-01-corrective-review`).
+- `main` is at `49ed52c` and was not modified. Branch commits `fdd4546`, `4fc643b`, `7568a79`, `77142bd` plus the docs commits are **not** in `main`.
 - **PR #1 cannot be updated.** The GitHub API reports `state: closed`, `merged: true`, `merged_at 2026-10-20T09:04:52Z`, head `task/TASK-01-corrective-review@d460ad1`, base `main`. A merged pull request cannot receive new commits, so the TASK-01 corrective work can only land through a **new** pull request from this branch. Opening one was not authorized and no GitHub write credentials are available here, so it was not opened.
 - `main` still contains the fabricated sample approval (`private_uploaded` + `dQw4w9WgXcQ`), no storage helper, no tests, and the overstated `metadata.json`.
 
