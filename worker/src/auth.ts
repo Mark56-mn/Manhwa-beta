@@ -27,7 +27,8 @@ export function setupAuth(env: Env): FreebuffAuth {
       auth: createFreebuffAuth({
         clientId: env.FREEBUFF_CLIENT_ID!,
         issuer: env.FREEBUFF_ISSUER!,
-        baseUrl: env.APP_ORIGIN!
+        baseUrl: env.APP_ORIGIN!,
+        allowInsecureLocalhost: Boolean(env.APP_ORIGIN && env.APP_ORIGIN.startsWith('http://'))
       })
     };
   }

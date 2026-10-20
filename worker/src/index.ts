@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import type { Env } from './env';
 import { authConfigured, setupAuth } from './auth';
+import assetApp from './assets';
+
 
 /**
  * Manhwa Studio API (blueprint TASK 06/07).
@@ -18,7 +20,7 @@ app.get('/', (c) =>
     service: 'manhwa-studio-api',
     status: 'ok',
     phase: 'TASK-07 D1 + tenancy foundation',
-    routes: ['/healthz', '/readyz', '/api/v1/me', '/api/v1/assets', '/auth/freebuff/*']
+    routes: ['/healthz', '/readyz', '/api/v1/me', '/api/v1/assets/*', '/auth/freebuff/*']
   })
 );
 
@@ -61,11 +63,13 @@ app.get('/readyz', async (c) => {
 });
 
 /**
- * Asset placeholder route: TASK 12 implementation begins here.
+ * Asset routes (TASK 12): delegated to `worker/src/assets.ts`.
  */
-app.get('/api/v1/assets', async (c) => {
-  // ASSET ROUTE PLACEHOLDER - TASK 12 implementation begins here.
-  return c.json({ error: 'not_ready', detail: 'Asset endpoints are being wired now.' }, 501);
+app.all('/api/v1/assets/*', async (c) => {
+  // Delegate asset routes to the TASK-12 asset router. If the owner has not
+  // registered a Freebuff OIDC client, /api/v1/me and the auth-free asset
+  // health probe below still answer honestly; asset mutations require auth.
+  return assetApp.fetch(c.req.raw, c.env);
 });
 
 /**
