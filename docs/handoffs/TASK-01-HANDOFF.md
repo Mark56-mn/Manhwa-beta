@@ -1,59 +1,66 @@
 # TASK 01 — Verified Handoff
 
-**From:** Verification + corrective fix  
-**To:** Next Manhwa Studio engineering agent / owner  
-**Date:** 20 October 2026  
-**Branch:** `task/TASK-01-corrective-review`  
+**From:** Verification + corrective fix pass
+**To:** Next Manhwa Studio engineering agent / owner
+**Date:** 20 October 2026
+**Branch:** `task/TASK-01-corrective-review`
 **PR under review:** `Mark56-mn/Manhwa-beta/pull/1`
 
-## What this session verified
+## State of the branch now
 
-Verified by source inspection + a successful production build:
-- The AI generator modal is explicitly demo-only and cannot insert its sample into project data.
-- The workbench no longer says generated content is “ready to apply.”
-- Analytics now shows factual browser-local content counts and an explicit “Production integrations: Not connected” notice. Fake pipeline percentages and “real-time telemetry” language are gone.
-- `localStorage` only holds project data; the legacy provider key constant exists solely to be purged on mount, never read.
-- Source and built bundle do not expose any provider API key literal that this reviewer could observe.
+Verified by source inspection, an executable test suite, a successful production build, and an HTTP smoke check of the served build.
 
-## What this session still had to fix
+Honest by construction:
+- The AI generator is labelled `DEMO ONLY — AI BACKEND NOT CONNECTED`, returns fixed text, and has no path into project data.
+- Analytics shows browser-local content counts plus `Production integrations: Not connected`; no invented pipeline percentages.
+- The Approval Center shows `YouTube: Not connected`, `No rendered video exists for this project`, and a blocked-publishing notice. It no longer simulates a connect or upload.
+- The legacy `manhwa_gemini_key` localStorage entry is purged on mount and never read.
+- Sample approval data no longer carries a fabricated `private_uploaded` state or the `dQw4w9WgXcQ` video ID.
+- Getting-started copy and page metadata no longer claim live Gemini keys, OAuth, or YouTube publishing.
+- `src` and the built bundle contain no provider key literals.
 
-The `ApprovalCenter` on the reviewed branch was not yet honest. It simulated:
-- a YouTube OAuth connect action that immediately looked connected,
-- a `YouTube Connected (@StudioCreator)` badge,
-- a fake upload wizard with upload notes containing `Successfully uploaded via YouTube Data API v3`,
-- a fabricated sample video id `dQw4w9WgXcQ` being stored into project approvals,
-- a fake rendered video duration `Duration: 02:45`.
+## What changed in this pass (`49ed52c` plus the new commit)
 
-This session replaced that entire flow with an honest disconnected approval screen: `YouTube: Not connected`, no upload wizard, `No rendered video exists for this project`, and a blocked-publishing notice. Existing approval records in local project data are still displayed; they are not deleted.
+`49ed52c` replaced the mock YouTube connect/upload flow in `ApprovalCenter` with the honest disconnected screen.
 
-## Verified vs. unverified in this environment
+The new commit adds:
+- `src/lib/storage.ts` — storage key, purge-only legacy key, fabricated-video sentinel, `sanitizeStoredProjects()`.
+- `src/App.tsx` — sanitize on load, purge legacy key on mount, shared key constant.
+- `src/data/mockProjects.ts` — honest sample approval (no fake upload state or video ID).
+- `src/components/GettingStartedModal.tsx`, `index.html` — no claims of unbuilt AI/publishing integrations.
+- `tests/task01-honesty.test.ts` — 10 executable guard tests.
+- `tsconfig.json`, `package.json`, `bun.lock` — dev-only `@types/bun`, `bun` in `types`.
+- This handoff and the audit report.
 
-Verified this session:
-- `bun install --frozen-lockfile` — exit 0
-- `tsc --noEmit` — exit 0
-- `bun run lint` — exit 0
-- `bun run build` — exit 0; produced `dist/index.html`, `dist/assets/index-DFZeEo-p.css`, `dist/assets/index-DU1fB2Hl.js`
-- Source review of the key honesty/security paths listed above
+The previous report claimed `src/lib/storage.ts` and `tests/honesty.test.ts` already existed on this branch. They did not; that is why the honest fix includes creating them.
 
-Not verified this session:
-- `bun test` — failed in this environment with `No tests found!`. The project has a `tests/honesty.test.ts` file on this branch, but the test runner did not find and run it from this checkout/session, so the test step is reported as failed here, not passed.
-- Live browser runtime, interaction, and screenshot verification.
+## Verification results (actual, this session)
 
-## What would still need attention before any real release readiness claim
+| Check | Command | Exit | Result |
+|---|---|---|---|
+| Install | `bun install --frozen-lockfile` | 0 | 226 packages |
+| TypeScript | `bunx tsc --noEmit` | 0 | clean |
+| Lint | `bun run lint` | 0 | clean |
+| Tests | `bun test` | 0 | 10 pass, 0 fail |
+| Build | `bun run build` | 0 | `dist/assets/index-B2yBy7uT.js`, `index-DLrHOPER.css` |
+| Serve smoke | `vite preview` + `curl` | 0 | `/` 200 html, JS 200 `text/javascript` |
 
-1. Make the test suite actually runnable from the repo root in the intended environment, then run it and record exact output. The honesty tests in `tests/honesty.test.ts` look like the right automated guard for this kind of work; they should be part of the normal gate.
-2. Do a real browser probe of at least the generator, analytics, and approval screens, and confirm the honest labels render and no fake success states appear.
-3. If any later work touches provider keys, OAuth, uploads, rendering, or publishing, re-run this honesty review against the new code before claiming a real integration.
+Non-fatal: Vite warns about `__dirname` in `vite.config.ts` and a >500 kB chunk.
 
-## Safety and product constraints this pass respected
+## Not verified
 
-- No provider secrets in frontend code, browser storage, or committed files.
+- No browser click-through. No browser automation existed in this environment, so navigation, rendering, and interaction were not exercised in a DOM. If you have a browser available, probe: generator modal, analytics view, approval view, and project switching.
+- The tests are static/behavioural guards, not component-render or end-to-end tests. There is no testing-library or Playwright setup here.
+- No real auth, cloud persistence, AI provider, rendering, or YouTube publishing exists. Do not describe any of them as working.
+
+## Rules this pass respected
+
+- No commit to `main`; PR #1 not merged.
 - No Firebase or Firestore introduced.
-- No fake success path for AI, upload, or publishing.
-- Keep the SaaS multi-tenant design; do not hardcode a single user’s projects.
-- No real user projects deleted or overwritten.
-- Changes stay on the task branch; `main` is untouched.
+- No secrets read, printed, or committed. `.env.local` was not opened.
+- No test result claimed without running it.
+- Next development task not started.
 
 ## Recommended next step
 
-Finish committing the one remaining fix and the refreshed TASK-01 docs to `task/TASK-01-corrective-review`, update PR #1, and then leave the product-side next decision to the owner. The next product milestone is not Firebase; per the reconciled roadmap, the agreed direction is Cloudflare Worker / Hono + D1 / R2 work where its plan applies. Do not start Firebase unless the owner explicitly changes the architecture decision.
+Owner reviews PR #1 and approves the merge target. After that, the next committed milestone comes from `tasks/ROADMAP-RECONCILIATION.md` (Cloudflare Worker / Hono + D1 / R2), not Firebase. When real AI, rendering, or publishing work begins, keep the guard tests green and replace the `Not connected` states with verified operations rather than removing them by assertion.

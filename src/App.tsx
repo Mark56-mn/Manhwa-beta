@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Project } from './types/manhwa';
 import { INITIAL_PROJECTS } from './data/mockProjects';
+import { LEGACY_PROVIDER_KEY, PROJECTS_STORAGE_KEY, sanitizeStoredProjects } from './lib/storage';
 import { Navbar } from './components/Navbar';
 import { GettingStartedModal } from './components/GettingStartedModal';
 import { ProjectHub } from './components/ProjectHub';
@@ -15,10 +16,10 @@ import { BookOpen, Film, Sparkles, ArrowLeft } from 'lucide-react';
 
 export default function App() {
   const [projects, setProjects] = useState<Project[]>(() => {
-    const saved = localStorage.getItem('manhwa_studio_projects');
+    const saved = localStorage.getItem(PROJECTS_STORAGE_KEY);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        return sanitizeStoredProjects(JSON.parse(saved));
       } catch (e) {
         console.error('Failed to parse saved projects', e);
       }
@@ -40,7 +41,12 @@ export default function App() {
   const [aiPromptContext, setAiPromptContext] = useState('');
 
   useEffect(() => {
-    localStorage.setItem('manhwa_studio_projects', JSON.stringify(projects));
+    // Legacy builds stored a provider API key in localStorage. Purge it; never read it.
+    localStorage.removeItem(LEGACY_PROVIDER_KEY);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
   }, [projects]);
 
   const activeProject = projects.find((p) => p.id === activeProjectId) || projects[0];

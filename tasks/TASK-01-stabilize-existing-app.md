@@ -85,17 +85,17 @@ Do not change hosting providers, deploy to production, rotate/delete secrets, al
 
 This task is complete only when:
 
-- [ ] The existing project structure and prior work have been inspected.
-- [ ] The baseline build/check results are recorded.
-- [ ] Any concrete build/runtime defects fixed in scope are documented.
-- [ ] Demo/mock functionality is clearly distinguished from live functionality.
-- [ ] No application-owned AI secret is stored/read from browser storage or exposed in frontend code.
-- [ ] Local-only storage is not misrepresented as cloud persistence.
-- [ ] Available tests/typechecks/build are run and results recorded accurately.
-- [ ] No real user projects are deleted or overwritten.
-- [ ] A task report and handoff document are committed with the changes.
-- [ ] Changes are made on a task branch, not directly on `main`, unless repository policy explicitly requires otherwise.
-- [ ] The final response lists changed files, commands/results, known gaps, commit SHA, and the exact next task.
+- [x] The existing project structure and prior work have been inspected.
+- [x] The baseline build/check results are recorded.
+- [x] Any concrete build/runtime defects fixed in scope are documented.
+- [x] Demo/mock functionality is clearly distinguished from live functionality.
+- [x] No application-owned AI secret is stored/read from browser storage or exposed in frontend code.
+- [x] Local-only storage is not misrepresented as cloud persistence.
+- [x] Available tests/typechecks/build are run and results recorded accurately.
+- [x] No real user projects are deleted or overwritten.
+- [x] A task report and handoff document are committed with the changes.
+- [x] Changes are made on a task branch, not directly on `main`, unless repository policy explicitly requires otherwise.
+- [x] The final response lists changed files, commands/results, known gaps, commit SHA, and the exact next task.
 
 ## Required documentation output
 

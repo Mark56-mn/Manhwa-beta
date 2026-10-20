@@ -71,7 +71,7 @@ export function GettingStartedModal({ isOpen, onClose, onGetStarted }: GettingSt
                 <h4 className="font-semibold text-white">3. AI Studio Generator</h4>
               </div>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Use intelligent presets to instantly brainstorm plot twists, expand character dialogues, or generate scene prompts. Fully supports Sandbox mode or live Gemini API keys.
+                Preview the demo generator. It shows fixed example text only: no AI backend is connected, prompts are never sent anywhere, and sample output cannot be inserted into a project.
               </p>
             </div>
 
@@ -81,7 +81,7 @@ export function GettingStartedModal({ isOpen, onClose, onGetStarted }: GettingSt
                 <h4 className="font-semibold text-white">4. Approval & YouTube Publisher</h4>
               </div>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Review rendered motion comic videos, connect YouTube securely via OAuth, upload privately/unlisted by default, and perform explicit dual confirmation for public release.
+                Review approval records stored in this browser's local project data. YouTube publishing is not connected in this build: there is no server-side OAuth, no upload path, and no rendered video yet.
               </p>
             </div>
           </div>
