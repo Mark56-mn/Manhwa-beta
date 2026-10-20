@@ -106,6 +106,20 @@ describe('demo and sample data honesty', () => {
     const html = read('index.html');
     expect(html).not.toContain('secure YouTube publishing');
     expect(html).toContain('not connected');
+    // TASK-01 re-check: the document title must not claim a working AI pipeline.
+    expect(html).not.toMatch(/<title>[^<]*AI Webtoon Production[^<]*<\/title>/);
+  });
+
+  test('platform manifest does not claim unbuilt capabilities', () => {
+    const manifest = JSON.parse(read('metadata.json')) as {
+      description: string;
+      majorCapabilities: string[];
+    };
+
+    expect(manifest.description).not.toContain('secure YouTube publishing');
+    expect(manifest.description).not.toMatch(/AI-powered/i);
+    expect(manifest.description).toContain('not connected');
+    expect(manifest.majorCapabilities).toEqual([]);
   });
 
   test('approval screen reports an honest disconnected publishing state', () => {
