@@ -3,7 +3,7 @@
 **From:** Second verification + hardening pass
 **To:** Next Manhwa Studio engineering agent / owner
 **Date:** 20 October 2026
-**Branch:** `task/TASK-01-corrective-review` @ `77142bd` (pushed)
+**Branch:** `task/TASK-01-corrective-review` @ `b6f02ae` (pushed; five commits ahead of `main`)
 **PR under review:** `Mark56-mn/Manhwa-beta/pull/1` — **closed and merged** (`merged: true`, `2026-10-20T09:04:52Z`)
 
 ## Read this first — the PR cannot be updated
@@ -23,7 +23,7 @@ Honest by construction, and now enforced by executed components rather than only
 - Metadata: `index.html` title/description/OG and `metadata.json` describe the demo build; `majorCapabilities` is empty.
 - No provider key literals in `src`, `index.html`, or the built bundle.
 
-## Verification results (actual, last run on `77142bd`)
+## Verification results (actual, last code change `77142bd`)
 
 | Check | Command | Exit | Result |
 |---|---|---|---|
