@@ -79,22 +79,13 @@ describe('approval center render', () => {
 
 describe('app render', () => {
   beforeEach(() => {
-    const store = new Map<string, string>();
-    (globalThis as unknown as { localStorage: Storage }).localStorage = {
-      getItem: (key: string) => store.get(key) ?? null,
-      setItem: (key: string, value: string) => void store.set(key, value),
-      removeItem: (key: string) => void store.delete(key),
-      clear: () => store.clear(),
-      key: (index: number) => Array.from(store.keys())[index] ?? null,
-      get length() {
-        return store.size;
-      },
-    } as Storage;
+    // happy-dom (see tests/setup/dom.ts) provides a real localStorage.
+    localStorage.clear();
   });
 
   // NOTE: effects do not run during server rendering, so the mount-time purge of
-  // the legacy provider key is covered by the storage-key tests in the other
-  // suite, not here. This test only proves the existing UI still renders.
+  // the legacy provider key is covered by tests/task01-interaction.test.tsx,
+  // not here. This test only proves the existing UI still renders.
   test('existing project hub and navigation still render', async () => {
     const { default: App } = await import('../src/App');
     const html = renderToStaticMarkup(<App />);
