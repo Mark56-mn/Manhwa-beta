@@ -1,43 +1,59 @@
-# TASK 01 — Corrective Handoff
+# TASK 01 — Verified Handoff
 
-**From:** Corrective review pass  
-**To:** Next Manhwa Studio engineering agent  
-**Date:** 18 October 2026  
-**Branch:** `task/TASK-01-corrective-review`
+**From:** Verification + corrective fix  
+**To:** Next Manhwa Studio engineering agent / owner  
+**Date:** 20 October 2026  
+**Branch:** `task/TASK-01-corrective-review`  
+**PR under review:** `Mark56-mn/Manhwa-beta/pull/1`
 
-## What changed in this pass
+## What this session verified
 
-- AI generator sample text is explicitly demo-only and cannot be inserted into the project.
-- The workbench no longer claims simulated content is ready to apply.
-- Analytics now displays factual counts from browser-local project data and an explicit “Production integrations: Not connected” notice. Fabricated pipeline percentages and “real-time telemetry” claims were removed.
-- Changes are isolated on this task branch. Do not merge to `main` until review and checks are complete.
+Verified by source inspection + a successful production build:
+- The AI generator modal is explicitly demo-only and cannot insert its sample into project data.
+- The workbench no longer says generated content is “ready to apply.”
+- Analytics now shows factual browser-local content counts and an explicit “Production integrations: Not connected” notice. Fake pipeline percentages and “real-time telemetry” language are gone.
+- `localStorage` only holds project data; the legacy provider key constant exists solely to be purged on mount, never read.
+- Source and built bundle do not expose any provider API key literal that this reviewer could observe.
 
-## Verified vs. unverified
+## What this session still had to fix
 
-Verified by source inspection:
-- Project state uses browser `localStorage` key `manhwa_studio_projects`.
-- The AI modal previously showed fixed sample text and had an “Accept & Insert into Project” action.
-- The prior analytics component assigned arbitrary progress values to pipeline stages.
-- The recent commit `876907e36b1a1595030bff617d8b706ecae62bdf` is in recent repository history, while the report's claim of a task branch conflicts with branch search showing only `main` before this corrective branch was created.
+The `ApprovalCenter` on the reviewed branch was not yet honest. It simulated:
+- a YouTube OAuth connect action that immediately looked connected,
+- a `YouTube Connected (@StudioCreator)` badge,
+- a fake upload wizard with upload notes containing `Successfully uploaded via YouTube Data API v3`,
+- a fabricated sample video id `dQw4w9WgXcQ` being stored into project approvals,
+- a fake rendered video duration `Duration: 02:45`.
 
-Not verified:
-- `npm run build` and `npm run lint` were not run in this review environment.
-- Browser runtime, responsiveness, data migration, real AI, cloud persistence, media generation, rendering, OAuth, and YouTube publishing were not tested or established.
+This session replaced that entire flow with an honest disconnected approval screen: `YouTube: Not connected`, no upload wizard, `No rendered video exists for this project`, and a blocked-publishing notice. Existing approval records in local project data are still displayed; they are not deleted.
 
-## Required next actions
+## Verified vs. unverified in this environment
 
-1. Check out `task/TASK-01-corrective-review`.
-2. Run `npm install` using the project's intended package manager, then run `npm run build` and `npm run lint`; capture exact output and exit codes.
-3. Test project creation/editing/reload to ensure local data remains intact.
-4. Confirm the generator has no path that inserts its demo sample into the Story Bible or episode scripts.
-5. Audit approvals and publishing screens for mock actions that look like real success.
-6. Update this handoff and `docs/audits/TASK-01-IMPLEMENTATION-REPORT.md` with actual results.
-7. Only after checks pass and the remaining mock states are documented, propose Task 02 (Firebase Authentication + Firestore). Do not implement Task 02 in this branch unless explicitly instructed.
+Verified this session:
+- `bun install --frozen-lockfile` — exit 0
+- `tsc --noEmit` — exit 0
+- `bun run lint` — exit 0
+- `bun run build` — exit 0; produced `dist/index.html`, `dist/assets/index-DFZeEo-p.css`, `dist/assets/index-DU1fB2Hl.js`
+- Source review of the key honesty/security paths listed above
 
-## Safety and product constraints
+Not verified this session:
+- `bun test` — failed in this environment with `No tests found!`. The project has a `tests/honesty.test.ts` file on this branch, but the test runner did not find and run it from this checkout/session, so the test step is reported as failed here, not passed.
+- Live browser runtime, interaction, and screenshot verification.
+
+## What would still need attention before any real release readiness claim
+
+1. Make the test suite actually runnable from the repo root in the intended environment, then run it and record exact output. The honesty tests in `tests/honesty.test.ts` look like the right automated guard for this kind of work; they should be part of the normal gate.
+2. Do a real browser probe of at least the generator, analytics, and approval screens, and confirm the honest labels render and no fake success states appear.
+3. If any later work touches provider keys, OAuth, uploads, rendering, or publishing, re-run this honesty review against the new code before claiming a real integration.
+
+## Safety and product constraints this pass respected
 
 - No provider secrets in frontend code, browser storage, or committed files.
-- Keep the SaaS multi-tenant design; do not hardcode a single user's projects.
-- Initial provider policy remains `FREE_ONLY`; never silently fall back to paid providers.
-- Public YouTube publication must require explicit owner approval.
-- Do not describe sample content, approval records, analytics, or integrations as real production outcomes unless verified.
+- No Firebase or Firestore introduced.
+- No fake success path for AI, upload, or publishing.
+- Keep the SaaS multi-tenant design; do not hardcode a single user’s projects.
+- No real user projects deleted or overwritten.
+- Changes stay on the task branch; `main` is untouched.
+
+## Recommended next step
+
+Finish committing the one remaining fix and the refreshed TASK-01 docs to `task/TASK-01-corrective-review`, update PR #1, and then leave the product-side next decision to the owner. The next product milestone is not Firebase; per the reconciled roadmap, the agreed direction is Cloudflare Worker / Hono + D1 / R2 work where its plan applies. Do not start Firebase unless the owner explicitly changes the architecture decision.
