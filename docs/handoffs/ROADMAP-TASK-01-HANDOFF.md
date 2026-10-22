@@ -102,7 +102,7 @@ No new variables are needed for this task. Existing names (documented in `.env.e
 
 **Owner actions, in order:**
 
-1. **Review the diff** `main...task/TASK-01-reconcile-ci` (48 files, mostly TASK 02–12 work) and decide the merge strategy.
+1. **Review the diff** `main...task/TASK-01-reconcile-ci` (47 files: 34 added, 13 modified; mostly TASK 02–12 work) and decide the merge strategy.
 2. **Open the PR** (or authorize an authenticated agent to do it):
    `https://github.com/Mark56-mn/Manhwa-beta/compare/main...task/TASK-01-reconcile-ci`
 3. Do **not** re-enable GitHub Actions; if a hosted gate is ever wanted, that is a separate owner decision, not a TASK 01 follow-up.
