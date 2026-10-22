@@ -77,7 +77,7 @@ Documentation current-state fixes made in the same commit (so no document claims
 
 `docs/audits/TASK-05-*` and `docs/handoffs/TASK-05-*` were otherwise left as historical records.
 
-## 6. Local gates on the exact candidate commit `1d3edfb`
+## 6. Local gates (candidate commit `1d3edfb`, re-run on the TASK 01 tip `33018ff`)
 
 Environment: Linux x64, Bun **1.4.4** (`~/.bun/bin/bun`, verified before running), fresh `node_modules` (deleted first), `set -o pipefail`, exit codes captured directly rather than through a pipe.
 
@@ -86,13 +86,13 @@ Environment: Linux x64, Bun **1.4.4** (`~/.bun/bin/bun`, verified before running
 | Install | `bun install --frozen-lockfile` | **exit 0** — 126 packages, lockfile unchanged, working tree clean afterwards |
 | Typecheck / lint | `bun run lint` (= `tsc --noEmit`) | **exit 0**, no diagnostics |
 | Tests | `bun run test` (= `bun test`) | **exit 0** — **59 pass, 0 fail**, 112 `expect()` calls, 5 files |
-| Production build | `bun run build` (= `vite build`) | **exit 0** — `dist/` emitted (only the pre-existing chunk-size advisory) |
+| Production build | `bun run build` (= `vite build`) | **exit 0** — `dist/` emitted (only the pre-existing chunk-size and config-loader advisories) |
 
 Nothing was skipped, weakened, or changed to force a pass; no test assertion, application behaviour or dependency was modified by this task.
 
 **Why Bun 1.4.4 is the pinned version:** the committed `bun.lock` is `"lockfileVersion": 2`, introduced in Bun 1.4. On Bun 1.3.x the frozen install fails immediately with `Unknown lockfile version` / `lockfile had changes, but lockfile is frozen` (reproduced). Bun 1.4.4 was the current release when this was established. The lockfile itself was **not** downgraded or regenerated, and no dependency was upgraded. The project still has no `packageManager`/`engines` field, so the requirement lives in `README.md` ("Bun ≥ 1.4") until TASK 02 decides whether to encode it.
 
-The later documentation-only commits (this report and the handoff) touch Markdown only; the gates were re-run on the final branch tip with identical results (see §10).
+The later documentation-only commits (this report and the handoff) touch Markdown only; the gates were re-run on the final TASK 01 tip **`33018ff`** with identical results, and again in ROADMAP TASK 02 (see §10). `1d3edfb` is the last commit of this task that changes anything other than Markdown, which is why it is named as the candidate.
 
 ## 7. Security, diff and history review (STEP 4)
 
@@ -101,7 +101,7 @@ The later documentation-only commits (this report and the handoff) touch Markdow
 - **Generated artifacts:** nothing from `dist/`, `node_modules/`, `.wrangler/` or `.tmp*` is tracked.
 - **History reachability:** `8d74d67`, `49ed52c`, `1e1e8d4`, `696351b`, `e9e5613`, `449791e` are all ancestors of the branch tip — no commit was lost, and no reset or force-push was used.
 - **Security tests preserved and passing:** `tests/tenancy.test.ts` (tenant isolation, sub-keyed membership, CHECK/FK/unique enforcement, cascades) and `tests/asset.test.ts` (401/403 paths, cross-tenant 403, same-origin guard, size/type limits), plus `storage`, `honesty` and `seed-data` suites.
-- **Application code:** this task changed no `src/`, `worker/`, `migrations/` or dependency files.
+- **Application code:** this task's own commits changed no `src/`, `worker/`, `migrations/` or dependency files. The **branch as a whole** does contain those files — they come from the carried TASK 02–12 stack (§3), not from TASK 01.
 
 ## 8. Remaining risks and manual verification
 
@@ -120,8 +120,9 @@ The later documentation-only commits (this report and the handoff) touch Markdow
 ## 10. Final branch state
 
 - Branch: **`task/TASK-01-reconcile-ci`** (pushed to `origin`, **not merged**)
-- Base: `main` @ `49ed52c`; **0 commits behind** (ahead by the 20-commit TASK 02–12 stack plus this task's merge, CI-removal and documentation commits)
-- Candidate commit for review: **`1d3edfb`** (CI removal + docs), with the documentation commit on top
+- Base: `main` @ `49ed52c`; **0 commits behind** (ahead by the **16-commit** TASK 02–12 stack plus this task's merge, CI-removal and documentation commits)
+- Candidate commit for review: **`1d3edfb`** (CI removal + docs); the last commit of this task is **`33018ff`** (Markdown only)
+- Diff `main...HEAD`: **47 files, 34 added, 13 modified, 0 deleted**
 - Verdict: **ready for owner review**; gate evidence is local, not hosted
 
 **Next task:** ROADMAP TASK 02 — reconcile roadmap, README and per-task documentation; prerequisites are listed in the handoff.

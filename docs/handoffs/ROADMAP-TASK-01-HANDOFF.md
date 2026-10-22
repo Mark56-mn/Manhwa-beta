@@ -23,9 +23,9 @@ Deliberately **not** done: no PR (no authenticated GitHub CLI in this environmen
 - Starting point: `task/TASK-07-d1-tenancy-foundation` @ **`8d74d67c8b6944275335dcce00bbdb1f3e127071`**
 - Merge commit: **`1e1e8d4`**
 - Earlier candidate commit (before the CI removal): `696351b`, docs `e9e5613`, `449791e`
-- **Candidate commit for review: `1d3edfb`** — GitHub Actions workflow deleted, README/TASK-05 docs corrected
-- Documentation commit (this report + handoff) sits directly on top of `1d3edfb`; it changes Markdown only
-- Branch tip: **0 commits behind `main`**, ahead by the 20-commit TASK 02–12 stack plus this task's merge, CI-removal and documentation commits
+- **Candidate commit for review: `1d3edfb`** — GitHub Actions workflow deleted, README/TASK-05 docs corrected (last non-Markdown commit of this task)
+- **TASK 01 tip: `33018ff`** — documentation commits (`894a874`, `8267494`, `33018ff`) sit on top of `1d3edfb` and change Markdown only
+- Branch tip: **0 commits behind `main`**, ahead by the **16-commit** TASK 02–12 stack plus this task's merge, CI-removal and documentation commits (47 files: 34 added, 13 modified, 0 deleted)
 
 ## 3. Changes and file paths (this task, relative to `main`)
 
@@ -39,7 +39,7 @@ Deliberately **not** done: no PR (no authenticated GitHub CLI in this environmen
 | `docs/audits/ROADMAP-TASK-01-IMPLEMENTATION-REPORT.md` | this task's report |
 | `docs/handoffs/ROADMAP-TASK-01-HANDOFF.md` | this handoff |
 
-No `src/`, `worker/`, `migrations/`, test or dependency changes. `src/components/ApprovalCenter.tsx` is byte-identical to `main`'s honest "YouTube: Not connected" version.
+**Scope note:** the rows above are *this task's* changes. TASK 01 itself touched no `src/`, `worker/`, `migrations/`, test or dependency files; those appear in the `main...HEAD` diff because the branch carries the TASK 02–12 stack (§2). `src/components/ApprovalCenter.tsx` is byte-identical to `main`'s honest "YouTube: Not connected" version.
 
 **Workflow removal was checked before deletion:** `.github/` contained exactly one file (`.github/workflows/ci.yml`); no `.gitlab-ci.yml`, `.circleci/`, `Jenkinsfile`, `.travis.yml`, `azure-pipelines.yml`, badge, script or deploy tool referenced it; nothing else depended on GitHub Actions.
 
@@ -54,7 +54,7 @@ bun run test                    # exit 0 — 59 pass, 0 fail, 112 expect(), 5 fi
 bun run build                   # exit 0 — vite build, dist/ emitted
 ```
 
-Run on **`1d3edfb`**, then re-run on the final branch tip (Markdown-only changes) with identical results.
+Run on **`1d3edfb`**, then re-run on the TASK 01 tip **`33018ff`** (Markdown-only changes) with identical results; re-run again in ROADMAP TASK 02 on the documentation tip.
 
 Git / review evidence:
 
@@ -71,7 +71,7 @@ Secret sweep (API keys, PATs, Slack tokens, private-key headers, non-placeholder
 
 The two historical Actions runs (`39372282697` on `8d74d67`, `39763201427` on `e9e5613`) both failed **before executing a single step**: the check-run annotation reads *"The job was not started because your account is locked due to a billing issue."* No test, typecheck or build ever ran under Actions.
 
-Per the owner's decision, the workflow was deleted instead of repaired, and the gates are run locally by the agent. **Never describe this project as "CI green"** — the correct statement is: all four gates pass when executed locally on commit `1d3edfb`.
+Per the owner's decision, the workflow was deleted instead of repaired, and the gates are run locally by the agent. **Never describe this project as "CI green"** — the correct statement is: all four gates pass when executed locally on the TASK 01 tip `33018ff`.
 
 ## 6. Tests added / updated
 
@@ -113,7 +113,10 @@ No new variables are needed for this task. Existing names (documented in `.env.e
 
 ## 11. Exact next task and prerequisites
 
-**Next: ROADMAP TASK 02 — Reconcile roadmap and documentation** (branch `task/TASK-02-reconcile-docs`).
+**Next: ROADMAP TASK 02 — Reconcile roadmap and documentation.** By owner instruction it ran on **this same branch** (`task/TASK-01-reconcile-ci`, docs only) rather than a new `task/TASK-02-reconcile-docs`, because the branch is not yet merged and a second branch would fork the stack. Its report and handoff are
+`docs/audits/ROADMAP-TASK-02-IMPLEMENTATION-REPORT.md` and `docs/handoffs/ROADMAP-TASK-02-HANDOFF.md`.
+
+Original prerequisites for TASK 02 (kept for the record):
 
 Prerequisites:
 

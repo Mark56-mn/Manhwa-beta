@@ -7,6 +7,14 @@
 
 **Overall status: ROUTES IMPLEMENTED, hardening + verification in progress** — the R2 entitlement is live, the bucket exists, the binding is wired, and the worker already reports `r2: ok`. The asset upload/download routes are implemented in ``worker/src/assets.ts`` and covered by ``tests/asset.test.ts``. What remains is final hardening/verification and docs/traceability updates; true end-to-end auth still depends on the owner registering the Freebuff OIDC client.
 
+> **Reconciled 22 October 2026 (ROADMAP TASK 02).** Every route listed under "What's still needed" below is
+> **implemented and covered by `tests/asset.test.ts`**; that section is now a design record, not a to-do list.
+> This branch was pushed and integrated into `task/TASK-01-reconcile-ci` ("nothing pushed" and "seven
+> stacked branches" no longer apply), and the suite is **59 tests / 5 suites**. What the tests cannot prove:
+> no Worker is deployed, so the routes have never run against the live bucket, and the live bucket state
+> itself is reported by this task rather than re-verified. **No `TASK-12-IMPLEMENTATION-REPORT.md` was ever
+> written** — this handoff is the only TASK 12 record.
+
 ---
 
 ## What's already done (don't redo)
@@ -21,7 +29,7 @@
 - [x] Gates green (current): ``bun install --frozen-lockfile``, `lint` (``tsc --noEmit``), `test`, `build` — all 0.
 - [x] Live workerd probe (Miniflare on :8787): `/readyz` returned 200 with `r2: ok`.
 
-## What's still needed (TASK 12 implementation)
+## What's still needed (TASK 12 implementation) — completed, kept as the design record
 
 - Implemented routes in ``worker/src/assets.ts``:
   - ``GET /api/v1/assets`` — list assets scoped to the caller's organization.

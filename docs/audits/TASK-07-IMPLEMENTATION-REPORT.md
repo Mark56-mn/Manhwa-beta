@@ -7,6 +7,12 @@
 
 **Overall status: PARTIAL** — D1, tenancy schema, migrations (local **and** remote), and isolation tests are **complete and verified**. **Auth is blocked** on the owner registering a Sign in with Freebuff client (their login required — §3). The contract was validated, not invented.
 
+> **Reconciled 22 October 2026 (ROADMAP TASK 02).** Suite total is now **59 tests / 5 suites** (TASK 12
+> added `tests/asset.test.ts`); this branch was pushed and integrated into `task/TASK-01-reconcile-ci`
+> (so "nothing pushed" no longer applies); R2 asset routes are implemented. **Unchanged and still the
+> blocker: no Freebuff OIDC client is registered, no Worker is deployed, and the remote D1 migration below
+> is reported, not independently re-verified.**
+
 ---
 
 ## 1. Scope completed

@@ -19,6 +19,9 @@
   - Supabase: `SUPABASE_DB_URL` + `SUPABASE_URL` structurally consistent (project ref `jtzekmavcbepzgunfuyr`), pooler `aws-1-eu-west-1.pooler.supabase.com:6543` **TCP-reachable**; no DB session opened yet.
 - **Worker foundation** (`wrangler.toml`, `worker/src/index.ts`, `worker/src/env.ts`): Hono API with `/healthz` and `/readyz` reporting observed dependency status. **Verified in local workerd** (`wrangler dev`): `/healthz` → 200; `/readyz` → honest `not_configured` for D1/R2.
 - Gates: `bun run lint` → 0, `bun run test` → 0 (34 pass), `bun run build` → 0.
+  > **Reconciled 22 October 2026 (ROADMAP TASK 02):** the suite is now **59 tests / 5 suites**; this branch
+  > was pushed and integrated into `task/TASK-01-reconcile-ci` (so "not pushed, no PR" no longer applies);
+  > D1 and R2 resources were created by repo TASK 07/12; the Worker is still **not deployed**.
 - Cloud account untouched — no deployments, databases, buckets, or DNS changes.
 
 ## 3. What is NOT done / blocked

@@ -17,11 +17,16 @@
 - **Schema:** `organizations`, `users` (OIDC-sub-keyed, no emails), `organization_memberships`, `projects`, `audit_events`, 4 indexes, cascading deletes, CHECK/UNIQUE/FK constraints.
 - **Worker:** `/readyz` hard-gates D1 (200 `ready` with real `SELECT 1` locally; 503 until then); `/api/v1/me` and `/auth/freebuff/*` answer honest **503 `auth_not_configured`**; the Sign in with Freebuff SDK (`@freebuff/auth@0.1.0`) is mounted per its AGENTS.md whenever `FREEBUFF_CLIENT_ID`/`FREEBUFF_ISSUER`/`APP_ORIGIN` are configured.
 - **Tests:** `tests/tenancy.test.ts` (12) runs the real migration SQL and proves the isolation primitives. Gates: frozen install 0, lint 0, **test 46/0**, build 0.
+  > **Reconciled 22 October 2026 (ROADMAP TASK 02):** the suite is now **59 tests / 5 suites**
+  > (`tests/asset.test.ts` added by TASK 12). This branch was pushed and integrated into
+  > `task/TASK-01-reconcile-ci`; the R2 placeholder stubs mentioned in §3 were replaced by the real
+  > asset routes in `worker/src/assets.ts`. **Still open: owner registers the Freebuff client, no Worker
+  > deployment, no down-migrations.**
 
 ## 3. What is blocked / NOT done
 
 - **Live sign-in (owner-only):** the Freebuff OIDC client must be registered with **the owner's login** — either `npx @freebuff/auth register --project manhwa-studio --name "Manhwa Studio" --environment development --redirect-uri http://localhost:8788/auth/freebuff/callback`, or authorizing a Freebuff Sites project (`sites_enable_auth`). Then set the three public vars (wrangler `[vars]`). **Never hand-roll OAuth; never ask for/accept Freebuff platform tokens in this repo.**
-- **R2 (TASK 12):** now live. The account-level R2 entitlement was missing (API error 10042), which is **not** a token-permission problem — both account tokens already had **Workers R2 Storage Write/Read**. The owner activated R2 on the account; bucket `manhwa-studio-assets` was created (WNAM, Standard), end-to-end verified (REST create/read/delete → 200), and the worker's `/readyz` reports `r2: ok` in workerd. The asset upload/download route stubs live in `worker/src/index.ts` (501 placeholder) and a smoke test in `tests/asset.test.ts`.
+- **R2 (TASK 12):** now live. The account-level R2 entitlement was missing (API error 10042), which is **not** a token-permission problem — both account tokens already had **Workers R2 Storage Write/Read**. The owner activated R2 on the account; bucket `manhwa-studio-assets` was created (WNAM, Standard), end-to-end verified (REST create/read/delete → 200), and the worker's `/readyz` reports `r2: ok` in workerd. *(Superseded 22 Oct 2026: the 501 placeholder was replaced by the implemented routes in `worker/src/assets.ts`, covered by `tests/asset.test.ts`.)*
 - **Worker deployment:** not performed (needs explicit authorization; procedure in `docs/DEPLOYMENT.md`).
 - **API data routes / job model:** TASK 08. Follow the tested patterns: server-side `getUser`, rows keyed by `user.sub`, `isSameOriginRequest` on every mutation, `Cache-Control: private, no-store`, tenant-scoped SQL like the joins proven in `tests/tenancy.test.ts`.
 - **Down-migrations:** not written yet — mandatory before any destructive schema change.
@@ -55,7 +60,7 @@ bunx wrangler d1 execute manhwa-studio --remote --command "SELECT name FROM sqli
 
 - Seven-deep unmerged stack — merge/PR decision increasingly urgent.
 - Auth unverified end-to-end until the owner registers the client (the SDK's own §6 checklist: signed-out 401s, two-account isolation, foreign-Origin 403, sign-out — all pending a real client).
-- R2 scope still missing; token/DB-password rotation from the earlier scrollback exposure remains the owner's call.
+- ~~R2 scope still missing~~ — resolved: the blocker was the account-level R2 entitlement (error 10042), not token scope. Token/DB-password rotation from the earlier scrollback exposure remains the owner's call.
 
 ## 8. Recommended next task (exact)
 

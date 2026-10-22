@@ -20,6 +20,9 @@
   scanning: fake-success strings, network calls, localStorage constraints, required honest labels),
   `tests/storage.test.ts` (sanitizer), `tests/seed-data.test.ts` (seed honesty). Mutation-verified: planted
   violations fail the run (report §5).
+  > **Reconciled 22 October 2026 (ROADMAP TASK 02):** the suite is now **59 tests across 5 suites**
+  > (`tests/tenancy.test.ts` from repo TASK 07, `tests/asset.test.ts` from TASK 12); this branch was later
+  > pushed and integrated into `task/TASK-01-reconcile-ci`, so "not pushed, no PR" no longer applies.
 - **Gate chain:** `bun install --frozen-lockfile` → 0, `bun run lint` → 0, `bun run test` → 0,
   `bun run build` → 0.
 - **CI:** `.github/workflows/ci.yml` added (GitHub Actions + `oven-sh/setup-bun`, free for public repos) —

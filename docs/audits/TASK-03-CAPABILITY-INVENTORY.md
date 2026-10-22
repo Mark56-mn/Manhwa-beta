@@ -2,12 +2,39 @@
 
 **Product:** Manhwa Studio · **Repository:** `Mark56-mn/Manhwa-beta`
 **Branch:** `task/TASK-03-mock-state-audit` · **Date:** 19 October 2026
+**Partially superseded:** read the reconciliation overlay (22 October 2026) before relying on any row —
+several "Not implemented" rows now describe code that exists, and the totals changed.
 **Method:** full-source search of `src/` + `index.html` for mock data, `setTimeout` fake jobs, placeholder
 generation, hard-coded success, fake telemetry, and disconnected integrations presented as connected;
 cross-checked against the production bundle. **There are no `fetch`/`XMLHttpRequest` calls anywhere in the
 application** — the frontend performs zero network requests.
 
 **Status legend:** Working · Partial · Demo-only · Disconnected · Broken · Not implemented
+
+## Reconciliation overlay — 22 October 2026 (ROADMAP TASK 02)
+
+**This inventory is a snapshot of 19 October 2026** (branch `task/TASK-03-mock-state-audit`). It is kept
+as written for history; the rows below no longer describe the repository and are superseded by this
+section. Use the roadmap's verification levels, not the original status words, when judging readiness:
+
+`implemented-and-tested` — code exists and the local test suite covers it.
+`implemented-not-verified` — code exists but no real environment/session has exercised it.
+`planned` — designed in the roadmap, no code. `blocked` — needs an owner action first.
+`demo-only` — deliberately fabricated sample behaviour, labelled in the UI.
+
+| Row | Snapshot claim | Actual state at 22 Oct 2026 | Verification level |
+|---|---|---|---|
+| 11 | AI provider calls: "`@google/genai` declared but never imported" | The dependency was **removed** in repo TASK 04. No provider adapter exists anywhere. | `planned` (roadmap TASK 05) |
+| 17 | Authentication / multi-tenant isolation: "No backend" | `worker/src/auth.ts` mounts `@freebuff/auth` and derives identity from `user.sub`; `/api/v1/me` returns 401 signed-out and 503 when no client is registered; `tests/tenancy.test.ts` proves the D1 isolation primitives. **No OIDC client is registered and no Worker is deployed**, so no real sign-in has ever run. | `implemented-not-verified` + `blocked` (owner registers the client) |
+| 18 | Cloud database / object storage: "No D1/R2 code exists" | `migrations/0001_init_tenancy.sql` (organizations, users, memberships, projects, audit events, cascades) plus R2-backed asset routes in `worker/src/assets.ts`; both exercised by tests against SQLite and an in-memory R2 shim. Live D1/R2 provisioning is **reported only** (see `docs/DEPLOYMENT.md`). | `implemented-not-verified` |
+| 22 | Automated tests / CI: "No `test` script, no CI" | `bun run test` runs **59 tests / 5 suites** (honesty, storage, seed data, tenancy, assets). **No CI by owner decision** — GitHub Actions was removed in ROADMAP TASK 01. | `implemented-and-tested` (locally); CI is deliberately absent |
+| 23 | Deployment configuration: "No deploy files" | `wrangler.toml` declares the Worker, the D1 `DB` binding and the R2 `FILES` binding; `docs/DEPLOYMENT.md` documents the procedure. Nothing has been deployed. | `blocked` (owner authorization) |
+| 14 | Public-release approval gate "must be rebuilt server-side (blueprint TASK 16)" | Unchanged, and still correct. Note the name collision: **repo TASK 12 = R2 asset routes**, roadmap TASK 12 = exact-version owner approval. | `planned` (roadmap TASK 12) |
+
+Unchanged from the snapshot: rows 1–10, 12, 13, 15, 16, 24 and 25 — the React app still reads and writes
+only `localStorage["manhwa_studio_projects"]`, still makes **zero network requests**, and still shows the
+honest not-connected states. The Worker is not called by the frontend yet, which is why "project
+persistence in D1" remains `planned` (roadmap TASK 07) despite the API foundation existing.
 
 ## Inventory
 

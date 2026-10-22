@@ -8,6 +8,11 @@
 
 **Overall status: PASS** — Worker/Hono foundation scaffolded and verified **locally in real workerd** via `wrangler dev`; credentials audited end-to-end without a single secret value being printed. **No deployment, no cloud resources created** (§8).
 
+> **Reconciled 22 October 2026 (ROADMAP TASK 02).** Read the two bolded statements as of this task's commit.
+> Since then: D1 (repo TASK 07) and the R2 bucket (TASK 12) were created on the owner's account, the
+> branch was pushed and integrated into `task/TASK-01-reconcile-ci`, and the suite is **59 tests / 5
+> suites** rather than 34. **Still true: no Worker deployment exists.**
+
 ---
 
 ## 1. Scope completed

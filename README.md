@@ -1,12 +1,16 @@
 # Manhwa Studio (Manhwa Beta)
 
 A creator workspace for manhwa/moon-comic projects: story bibles, episode scripts, character
-continuity, analytics, and approval records — currently a **frontend-only application persisting to
-browser `localStorage`**.
+continuity, analytics, and approval records — currently a **frontend-only React app persisting to
+browser `localStorage`**, plus a **Cloudflare Worker API (Hono) foundation that the UI does not call
+yet**.
 
-> **Honest status:** AI generation, cloud persistence, authentication, video rendering, and YouTube
-> publishing are **not connected** in this build. Every capability is classified in
-> [`docs/audits/TASK-03-CAPABILITY-INVENTORY.md`](docs/audits/TASK-03-CAPABILITY-INVENTORY.md).
+> **Honest status:** AI generation, cloud persistence from the UI, authentication, video rendering, and
+> YouTube publishing are **not connected** in this build. The Worker, D1 schema and R2 asset routes
+> exist and are covered by tests, but **no Worker has been deployed** and no sign-in client is
+> registered. Every capability is classified by verification level in
+> [`docs/audits/TASK-03-CAPABILITY-INVENTORY.md`](docs/audits/TASK-03-CAPABILITY-INVENTORY.md)
+> (see its 22 October 2026 reconciliation section).
 > The implementation source of truth is the consolidated blueprint (Phase 0–4 roadmap in
 > [`tasks/ROADMAP-RECONCILIATION.md`](tasks/ROADMAP-RECONCILIATION.md)).
 
@@ -35,7 +39,7 @@ bun run build                   # output in dist/
 
 ## Testing and CI
 
-- **Tests:** `bun run test` runs 46 tests across four suites:
+- **Tests:** `bun run test` runs 59 tests across five suites:
   - `tests/honesty.test.ts` — scans application source and fails if fake-success strings, network calls,
     non-literal/unapproved `localStorage` keys, or missing honest labels ever reappear (automated version
     of the TASK 02/03 manual greps).
@@ -44,6 +48,9 @@ bun run build                   # output in dist/
   - `tests/seed-data.test.ts` — demo seed data makes no publication claims and has a consistent shape.
   - `tests/tenancy.test.ts` — the real D1 migration executed against SQLite: tenant isolation, sub-keyed
     membership checks, CHECK/foreign-key/unique enforcement, and cascade deletes.
+  - `tests/asset.test.ts` — the R2-backed asset routes: honest 503s when a binding or the auth client is
+    missing, 401 when signed out, cross-organization 403s, org-scoped listing, upload round-trip,
+    content-type allow-list, 10 MiB cap (413), deletion, and the same-origin mutation guard.
 - **No hosted CI.** GitHub Actions is deliberately not part of this project's validation workflow
   (the only workflow file, `ci.yml`, was removed in ROADMAP TASK 01; the account-level Actions billing
   lock meant jobs never started). Validation is performed by the coding agent and by the project's own
@@ -57,8 +64,12 @@ bun run build                   # output in dist/
   Verified locally with `bunx wrangler dev --port 8787` (`/healthz` → 200, `/readyz` reports real
   binding status). **No deployment has been performed** — see `docs/DEPLOYMENT.md` for the documented
   (unexecuted) deploy and rollback procedures.
+- **Bindings:** `DB` (D1) and `FILES` (R2) are wired in `wrangler.toml` and exercised by
+  `tests/tenancy.test.ts` / `tests/asset.test.ts` against local shims. Per `docs/DEPLOYMENT.md` the D1
+  database and R2 bucket were provisioned on the owner's account and a local `wrangler dev` readiness
+  probe reported `d1: ok` / `r2: ok`; that live provisioning has **not** been independently re-verified
+  from the repository, and no route in the React app calls the API yet.
 - **Frontend:** static build (`bun run build` → `dist/`); hosting not configured yet.
-- D1/R2 bindings attach in later tasks (07/12) once their resources exist and are verified.
 
 ## Secrets and environment
 
@@ -75,7 +86,7 @@ bun run build                   # output in dist/
 src/                 React app (App shell, components, demo seed data, types)
 worker/              Cloudflare Worker API (Hono): health/readiness, auth-ready routes
 migrations/          D1 SQL migrations (applied to the real database in TASK 07)
-tests/               bun test suites (honesty guards, sanitizer, seed data)
+tests/               bun test suites (honesty, sanitizer, seed data, D1 tenancy, R2 assets)
 scripts/             Operator helpers (e.g. store-secrets.sh)
 tasks/               Authoritative task definitions + roadmap reconciliation
 docs/audits/         Implementation reports + capability inventory (per task)

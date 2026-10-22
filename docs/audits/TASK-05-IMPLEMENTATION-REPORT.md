@@ -9,6 +9,12 @@
 **Overall status: PASS** — the repository now has a real, passing test suite wired into `bun run test`,
 with mutation evidence that the guards actually fail when violated. CI is **configured but unexecuted** (§7).
 
+> **Reconciled 22 October 2026 (ROADMAP TASK 02).** Everything above records this task's own commit and is
+> kept as history. Two statements no longer describe the repository: the total is now **59 tests across
+> 5 suites** (repo TASK 07 added `tests/tenancy.test.ts`, TASK 12 added `tests/asset.test.ts`), and there
+> is **no CI at all** — the workflow was deleted in ROADMAP TASK 01 (§1). No test from this task was
+> removed, skipped or weakened; the suites still pass unmodified.
+
 ---
 
 ## 1. Scope completed
@@ -88,7 +94,7 @@ vacuous.
 
 ## 9. Known limitations / risks
 
-- CI is configured but unexecuted (needs a push; owner authorization required to push).
+- ~~CI is configured but unexecuted~~ — **superseded**: the workflow was deleted in ROADMAP TASK 01 and hosted CI is not part of this project's validation. The correct current statement is "no CI exists; the local gate is the evidence".
 - No DOM/component tests, no browser E2E (no browser automation in this VM); UI honesty is guarded at
   source-string level plus prior manual checks.
 - The single mutation probe covers two guard classes; other guards were verified by construction and by
@@ -102,6 +108,6 @@ previous dependency set. User data untouched.
 ## 11. Status
 
 **PASS** for TASK 05's defined scope: `bun run test` exists and passes (exit 0), the gate chain
-install → lint → test → build is reproducible from `README.md`, and CI is honestly labeled as configured
-but unexecuted. **Phase 0 is now complete** (exit gate: stable UI, documented capabilities, truthful
+install → lint → test → build is reproducible from `README.md`. (CI was later deleted in ROADMAP TASK 01 —
+see the note at the top of this report.) **Phase 0 is now complete** (exit gate: stable UI, documented capabilities, truthful
 build/test evidence, secret handling reviewed).
