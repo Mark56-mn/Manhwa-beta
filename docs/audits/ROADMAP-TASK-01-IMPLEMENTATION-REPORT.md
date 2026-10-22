@@ -49,19 +49,22 @@ No application, Worker, migration, test, or dependency changes. No secrets added
 
 ## 4. CI root cause (confirmed from the real run, not guessed)
 
-The only Actions run in the repository is **run `39372282697`**, workflow `CI`, branch `task/TASK-07-d1-tenancy-foundation`, head SHA `8d74d67`, created `2026-10-20T04:57:14Z`.
+Two runs exist, both inspected through the public GitHub API:
 
-Evidence gathered through the public GitHub API:
+1. **Run `39372282697`** — workflow `CI`, branch `task/TASK-07-d1-tenancy-foundation`, head SHA `8d74d67`, created `2026-10-20T04:57:14Z`.
+2. **Run `39763201427`** — workflow `CI`, branch `task/TASK-01-reconcile-ci` (the integration branch pushed by this task), head SHA `e9e5613`, created `2026-10-22T10:27:12Z`. This is the candidate commit's own run.
 
-- Run: `status: completed`, `conclusion: failure`; job `118462592164` "install → lint → test → build", also `failure`.
-- The job's `started_at` and `completed_at` are **2 seconds apart**, and the jobs payload contains **no executed steps**.
-- Check-run annotation on `118462592164`:
+Evidence for both:
+
+- Both runs: `status: completed`, `conclusion: failure`; jobs `118462592164` and `119772186628` ("install → lint → test → build") also `failure`.
+- Each job's `started_at`/`completed_at` are **2 seconds apart**, and the jobs payload contains **no executed steps**.
+- Both check-runs carry the same failure annotation:
 
   > `The job was not started because your account is locked due to a billing issue.`
 
-  (second annotation is only the `ubuntu-latest` → Ubuntu 26 migration notice.)
+  (the second annotation on each is only the `ubuntu-latest` → Ubuntu 26 migration notice.)
 
-**Root cause: the job never ran. GitHub Actions is blocked at the account level by a billing lock.** This is not a failing test, typecheck, or build step, and no code change can fix it. Job logs (`…/actions/jobs/<id>/logs`) return HTTP 403 to unauthenticated callers, so step-level logs do not exist to inspect — the billing annotation is the terminal explanation.
+**Root cause: the job never ran. GitHub Actions is blocked at the account level by a billing lock.** This is not a failing test, typecheck, or build step, and no code change can fix it. The condition persisted and reproduced on the exact candidate commit on 22 October 2026. Job logs (`…/actions/jobs/<id>/logs`) return HTTP 403 to unauthenticated callers, and no step ever started, so there is no step-level log to inspect — the billing annotation is the terminal explanation.
 
 Because no CI run has ever executed a step, **there is no green run link to report**. Locally reproducing the workflow's exact steps fills that gap (see §5).
 
@@ -105,8 +108,8 @@ The same suite also passes on the merge commit `1e1e8d4`.
 
 ## 8. Known gaps / unverified claims
 
-1. **No green CI run exists.** Acceptance criterion "CI passes on the exact candidate commit" is **unmet** until the owner clears the Actions billing lock and a run executes. Local reproduction of all four steps is the only evidence so far.
-2. **No PR was opened.** `gh` in this environment is unauthenticated (`gh auth status` → not logged in), so a pull request could not be created from here; the branch is pushed and ready for a PR.
+1. **No green CI run exists.** Acceptance criterion "CI passes on the exact candidate commit" is **unmet** until the owner clears the Actions billing lock and a run executes. The candidate commit `e9e5613` *was* submitted to Actions (run `39763201427`) and was blocked before any step ran; local reproduction of all four steps is the only executed evidence so far.
+2. **No PR was opened.** `gh` in this environment is unauthenticated (`gh auth status` → not logged in), so a pull request could not be created from here; the branch is pushed and ready for a PR (`https://github.com/Mark56-mn/Manhwa-beta/pull/new/task/TASK-01-reconcile-ci`).
 3. **Not merged** — correctly so; the roadmap forbids merging without review.
 4. **No deployment or migration** was performed or claimed. The Worker was not deployed; D1/R2 live state was not re-verified by this task.
 5. Local host uses Bun 1.4.4 installed under `~/.bun`; the project still has no `packageManager`/`engines` field, so a developer on Bun 1.3.x will hit the "Unknown lockfile version" error. Documenting the required Bun version in the README belongs to ROADMAP TASK 02 (documentation reconciliation), not this task.

@@ -20,7 +20,7 @@ Blocked: the acceptance criterion *"CI passes on the exact candidate commit"* ca
 - Starting point: `task/TASK-07-d1-tenancy-foundation` @ **`8d74d67c8b6944275335dcce00bbdb1f3e127071`**
 - `main` integrated: **`49ed52c9f960b8e50ab61a21a6f2bfc7128fa5a2`**
 - Merge commit: **`1e1e8d4`**
-- **Candidate commit for CI/review: `696351b`** (merge + CI pin)
+- **Candidate commit for CI/review: `696351b`** (merge + CI pin); branch tip including docs: **`e9e5613d54e87d8b71e931bee213204864e153da`** (pushed; Actions run `39763201427` blocked by the billing lock before any step).
 - Documentation commit: the commit that adds this handoff and its report (child of `696351b`; no source changes)
 
 ## 3. Changes and file paths
@@ -50,11 +50,13 @@ git merge-base --is-ancestor 49ed52c HEAD && git merge-base --is-ancestor 8d74d6
 git diff 49ed52c HEAD -- src/components/ApprovalCenter.tsx                          # empty
 ```
 
-CI root cause evidence (public API, run `39372282697`, job `118462592164`):
+CI root cause evidence (public API; two runs, both blocked before any step):
 
 ```
-check-run annotation: "The job was not started because your account is locked due to a billing issue."
-started_at 2026-10-20T04:57:14Z → completed_at 2026-10-20T04:57:16Z (2 s, zero executed steps)
+run 39372282697  task/TASK-07-d1-tenancy-foundation  8d74d67  2026-10-20  job 118462592164
+run 39763201427  task/TASK-01-reconcile-ci  e9e5613  2026-10-22  job 119772186628
+check-run annotation (both): "The job was not started because your account is locked due to a billing issue."
+started_at → completed_at: 2 s each, zero executed steps
 ```
 
 **Failures to report honestly:** no green CI run exists; no PR exists; nothing is merged; nothing is deployed.
@@ -75,7 +77,7 @@ The pre-existing `docs/audits/TASK-01-*.md` and `docs/handoffs/TASK-01-*.md` wer
 
 ## 7. Known issues / unverified claims
 
-- **CI never executed.** Reproduced locally instead; a real green run is still required before anything is called "CI green".
+- **CI never executed.** The candidate commit `e9e5613` was pushed and Actions was triggered (run `39763201427`), but the job was blocked before any step for the billing lock. Reproduced all four gates locally instead; a real green run is still required before anything is called "CI green".
 - **`bun.lock` is `lockfileVersion: 2`** → requires Bun ≥ 1.4. Bun 1.3.x fails with `Unknown lockfile version`. No `packageManager`/`engines` field exists yet; documenting the required Bun version in the README is TASK 02 work.
 - **Stacked unmerged branches.** After this branch: `main` → 8 corrective commits → TASK 02…TASK 12 work → this integration. The merge decision is the owner's.
 - Worker deployment, D1/R2 live state, auth end-to-end: **not verified by this task** (unchanged from TASK 07's handoff).
