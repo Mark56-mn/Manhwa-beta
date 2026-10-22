@@ -1,9 +1,22 @@
 name: CI
 
 # Quality gates for Manhwa Studio (blueprint TASK 05).
-# NOTE: this workflow is configured but has NOT been executed yet — it first
-# runs when these changes are pushed to GitHub. Do not report CI as passing
-# until a real run is observed.
+#
+# Verification status (TASK 01, 22 October 2026):
+# - These four steps were reproduced locally on the integration commit and all
+#   passed: frozen install, typecheck, 59 tests, production build.
+# - The only GitHub Actions run so far (run 39372282697, branch
+#   task/TASK-07-d1-tenancy-foundation) **never started**: GitHub reported
+#   "The job was not started because your account is locked due to a billing
+#   issue." No step executed, so there is still no green CI run on record.
+#   CI can only go green once the owner resolves the Actions billing lock.
+#
+# Do not report CI as passing until a real run is observed green.
+#
+# Bun is pinned deliberately: `bun.lock` is `lockfileVersion: 2`, which requires
+# Bun >= 1.4. Older Bun (1.3.x) fails the install with "Unknown lockfile
+# version", so `bun-version: latest` would make the gate depend on whatever the
+# runner resolves that day.
 
 on:
   push:
@@ -19,7 +32,10 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.4.4
+
+      - name: Bun version
+        run: bun --version
 
       - name: Install dependencies (lockfile-frozen)
         run: bun install --frozen-lockfile
