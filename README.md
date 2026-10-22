@@ -12,13 +12,13 @@ browser `localStorage`**.
 
 ## Verified local workflow
 
-These commands were run in this repository on 19 October 2026 with the exit codes shown.
+These commands were run in this repository on 22 October 2026 with the exit codes shown.
 
 | Step | Command | Exit |
 |---|---|---|
 | Install dependencies | `bun install --frozen-lockfile` | 0 |
 | Typecheck | `bun run lint` (runs `tsc --noEmit`) | 0 |
-| Tests | `bun run test` (bun test, 46 tests / 4 suites) | 0 |
+| Tests | `bun run test` (bun test, 59 tests / 5 suites) | 0 |
 | Production build | `bun run build` (Vite) | 0 |
 | Dev server | `bun run dev` (serves `0.0.0.0:3000`) | 0 (HTTP 200 verified) |
 
@@ -44,9 +44,12 @@ bun run build                   # output in dist/
   - `tests/seed-data.test.ts` — demo seed data makes no publication claims and has a consistent shape.
   - `tests/tenancy.test.ts` — the real D1 migration executed against SQLite: tenant isolation, sub-keyed
     membership checks, CHECK/foreign-key/unique enforcement, and cascade deletes.
-- **CI:** `.github/workflows/ci.yml` runs install → lint → test → build on pushes and pull requests.
-  **Configured but not yet executed** — it runs on GitHub once the changes are pushed; do not report CI
-  as passing until a real run has been observed.
+- **No hosted CI.** GitHub Actions is deliberately not part of this project's validation workflow
+  (the only workflow file, `ci.yml`, was removed in ROADMAP TASK 01; the account-level Actions billing
+  lock meant jobs never started). Validation is performed by the coding agent and by the project's own
+  local gates and deployment/runtime checks: the four commands above, run on the exact candidate commit.
+  Treat a change as verified only when those commands were executed and their exit codes recorded —
+  there is no CI badge or hosted run to point at.
 
 ## Deployment
 

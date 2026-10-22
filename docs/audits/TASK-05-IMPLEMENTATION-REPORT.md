@@ -18,6 +18,7 @@ with mutation evidence that the guards actually fail when violated. CI is **conf
 - [x] Tests for the highest-risk behaviors identified in TASK 02–04 (see §2).
 - [x] Quality gate pipeline: install → lint → test → build, all run with recorded exit codes (§6).
 - [x] CI workflow added (`.github/workflows/ci.yml`) using free GitHub Actions + `oven-sh/setup-bun` — **explicitly documented as unexecuted until pushed**; a reproducible manual gate is documented in `README.md` in the meantime.
+  > **Superseded (ROADMAP TASK 01, 22 October 2026):** this workflow file has been **deleted**. GitHub Actions is no longer part of the validation workflow (the account-level Actions billing lock prevented jobs from ever starting); validation is now the agent-run local gate plus deployment/runtime checks. The local gate commands in this report remain accurate.
 - [x] README testing/CI section updated to reflect reality (it previously said no tests existed).
 
 ## 2. Test suites
@@ -68,7 +69,7 @@ vacuous.
 | 5 | `bun run lint` (after fixes) | **0** | no diagnostics (covers tests + src) |
 | 6 | `bun run build` | **0** | after the `storage.ts` refactor; same pre-existing >500 kB chunk warning |
 | 7 | Mutation probe (§5) | **1 (expected)** | both planted violations detected; restored; clean re-run → 0 |
-| 8 | GitHub Actions CI | **NOT RUN** | workflow added but requires a push; not claimed as passing |
+| 8 | GitHub Actions CI | **NOT RUN — now removed** | workflow added but requires a push; not claimed as passing. Removed in ROADMAP TASK 01 (22 Oct 2026); local gates are the validation path. |
 
 ## 7. Failures found and how they were fixed (no assertion was weakened)
 

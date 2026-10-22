@@ -24,6 +24,8 @@
   `bun run build` → 0.
 - **CI:** `.github/workflows/ci.yml` added (GitHub Actions + `oven-sh/setup-bun`, free for public repos) —
   **configured, NOT executed** (requires push). Until its first real run, use the manual gate in `README.md`.
+  > **Superseded (ROADMAP TASK 01, 22 October 2026):** the workflow file was **deleted**; hosted GitHub
+  > Actions is no longer part of this project's validation. Use the local gate commands instead.
 - Supporting refactor: sanitizer + storage constants in `src/lib/storage.ts`; `@types/bun` dev-only addition.
 - Secrets helper: `scripts/store-secrets.sh` (run it interactively, paste at the prompt — values never echo).
   **Owner still needs to store credentials and should rotate both** (they appeared in terminal output earlier).
@@ -49,7 +51,7 @@ policy with server-side adapters; one task per branch → report + handoff → s
 ## 5. Relevant files
 
 - Tests: `tests/*.test.ts`; runner script: `package.json` (`test`); types: `tsconfig.json` (`"bun"`).
-- `src/lib/storage.ts` (sanitizer/constants), `.github/workflows/ci.yml`, `README.md` (documented gate).
+- `src/lib/storage.ts` (sanitizer/constants), `README.md` (documented gate). (`.github/workflows/ci.yml` was added here and later removed in ROADMAP TASK 01.)
 - Evidence: `docs/audits/TASK-05-IMPLEMENTATION-REPORT.md`; history: `TASK-01`…`TASK-04` reports in `docs/audits/`.
 
 ## 6. Commands to reproduce checks
