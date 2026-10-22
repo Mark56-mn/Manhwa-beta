@@ -120,7 +120,7 @@ The later documentation-only commits (this report and the handoff) touch Markdow
 ## 10. Final branch state
 
 - Branch: **`task/TASK-01-reconcile-ci`** (pushed to `origin`, **not merged**)
-- Base: `main` @ `49ed52c`; **0 commits behind**, 22 ahead
+- Base: `main` @ `49ed52c`; **0 commits behind** (ahead by the 20-commit TASK 02–12 stack plus this task's merge, CI-removal and documentation commits)
 - Candidate commit for review: **`1d3edfb`** (CI removal + docs), with the documentation commit on top
 - Verdict: **ready for owner review**; gate evidence is local, not hosted
 

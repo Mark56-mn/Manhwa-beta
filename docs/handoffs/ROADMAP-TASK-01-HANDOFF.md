@@ -25,7 +25,7 @@ Deliberately **not** done: no PR (no authenticated GitHub CLI in this environmen
 - Earlier candidate commit (before the CI removal): `696351b`, docs `e9e5613`, `449791e`
 - **Candidate commit for review: `1d3edfb`** — GitHub Actions workflow deleted, README/TASK-05 docs corrected
 - Documentation commit (this report + handoff) sits directly on top of `1d3edfb`; it changes Markdown only
-- Branch tip: **22 commits ahead of `main`, 0 behind** (the first 20 are TASK 02–12 history carried by the stack; the last 2 are this task's CI-removal and documentation commits)
+- Branch tip: **0 commits behind `main`**, ahead by the 20-commit TASK 02–12 stack plus this task's merge, CI-removal and documentation commits
 
 ## 3. Changes and file paths (this task, relative to `main`)
 
@@ -59,7 +59,7 @@ Run on **`1d3edfb`**, then re-run on the final branch tip (Markdown-only changes
 Git / review evidence:
 
 ```text
-git rev-list --left-right --count origin/main...HEAD        # 0  22
+git rev-list --left-right --count origin/main...HEAD        # left column (behind) is 0
 git merge-base --is-ancestor 49ed52c HEAD                   # true (and 8d74d67, 1e1e8d4, 696351b, e9e5613, 449791e)
 git diff 49ed52c HEAD -- src/components/ApprovalCenter.tsx  # empty
 git ls-files | grep -i '\.env|\.dev\.vars|\.pem|\.key'      # .env.example only
