@@ -84,10 +84,13 @@ recorded in `docs/audits/ROADMAP-TASK-02-IMPLEMENTATION-REPORT.md` §4.
 
 ## 7. Recommended next task (exact)
 
-**Roadmap TASK 03 — dual-host feasibility investigation**, starting from the owner's Option A/B
-decision above, then answering: multi-origin OIDC client registration, CORS/`APP_ORIGIN` allow-list
-for two hosts (never `*`), where the Supabase export job runs, and which database is authoritative.
-**Do not start TASK 03, deploy, or migrate without the owner's explicit instruction.**
+**Dual-host feasibility investigation** (the task named in `docs/handoffs/ROADMAP-TASK-02-HANDOFF.md`
+§9 — *not* roadmap TASK 03, which is “Authentication + prove tenant isolation” and remains a separate,
+blocked-on-owner prerequisite; corrected 22 Oct after an earlier draft conflated the two), starting
+from the owner's Option A/B decision above, then answering: multi-origin OIDC client registration,
+CORS/`APP_ORIGIN` allow-list for two hosts (never `*`), where the Supabase export job runs, and which
+database is authoritative. **Do not start implementation of either, deploy, or migrate without the
+owner's explicit instruction.**
 
 ## 8. Warning
 

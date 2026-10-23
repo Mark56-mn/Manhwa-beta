@@ -12,3 +12,4 @@ coverage/
 
 # wrangler local state (created by wrangler dev; never commit)
 .wrangler/
+/freebuff-sites-build/

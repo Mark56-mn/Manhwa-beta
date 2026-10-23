@@ -185,7 +185,12 @@ authentication, introduced no new route, and weakened no existing guard: `/api/v
 
 ## 13. Recommended next step
 
-**Feed this evidence into roadmap TASK 03 (dual-host feasibility) and let the owner choose the
+Note on task numbering (corrected 22 Oct, same day): the dual-host feasibility investigation named in
+`docs/handoffs/ROADMAP-TASK-02-HANDOFF.md` §9 is **not** roadmap TASK 03 — roadmap TASK 03 is
+“Authentication + prove tenant isolation”. The two are prerequisites for each other and are referred to
+by their full names below to avoid the conflation an earlier draft of this report introduced.
+
+**Feed this evidence into the dual-host feasibility investigation and let the owner choose the
 authoritative backend before any implementation:**
 
 1. **Option A — Freebuff-deployed Worker is the single backend** (now proven workable): both the
@@ -200,5 +205,6 @@ authoritative backend before any implementation:**
    standalone Worker.
 
 Either option satisfies “one backend, one database, one identity”; only Option A uses Freebuff's
-built-in database as primary, and Option A is now evidence-backed. **Do not begin TASK 03
-implementation without the owner's instruction** (rule still in force from TASK 01/02 handoffs).
+built-in database as primary, and Option A is now evidence-backed. **Do not begin the dual-host
+implementation — or roadmap TASK 03 (Authentication + prove tenant isolation) — without the owner's
+instruction** (rule still in force from TASK 01/02 handoffs).
