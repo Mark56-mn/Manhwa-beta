@@ -77,4 +77,16 @@ export interface Env {
    */
   SUPABASE_URL?: string;
   SUPABASE_SERVICE_ROLE_KEY?: string;
+
+  /**
+   * Server-side AI provider (TASK 04). Secrets are Worker bindings/secrets only
+   * and are never returned, logged or placed in a job record. Both the key and
+   * an explicit model are required; otherwise generation answers an honest
+   * `provider_not_configured` and nothing is charged.
+   */
+  GEMINI_API_KEY?: string;
+  GEMINI_MODEL?: string;
+  /** Bounded provider request timeout and output limit (milliseconds/tokens). */
+  AI_TIMEOUT_MS?: string;
+  AI_MAX_OUTPUT_TOKENS?: string;
 }

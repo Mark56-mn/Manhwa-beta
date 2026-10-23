@@ -32,8 +32,10 @@ export function createSqliteD1(db: Database): D1DatabaseLike {
           return db.query(sql).all(...(params as never[])) as T[];
         },
         async run(): Promise<unknown> {
-          db.query(sql).run(...(params as never[]));
-          return { success: true };
+          const result = db.query(sql).run(...(params as never[]));
+          // Mirror D1's { success, meta: { changes } } shape so services can
+          // detect whether a conditional UPDATE actually won.
+          return { success: true, meta: { changes: result.changes } };
         }
       };
 

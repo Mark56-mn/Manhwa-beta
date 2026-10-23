@@ -2,14 +2,17 @@
 
 A creator workspace for manhwa/moon-comic projects: story bibles, episode scripts, character
 continuity, analytics, and approval records. Local project drafts live in browser `localStorage`;
-one real workflow — the **shared cloud-project list/create panel** — calls the **Cloudflare Worker API
-(Hono)** through a single typed client.
+the **shared cloud workspace** — projects, project profiles, Story Bibles, episodes, generation jobs and
+writing credits — calls the **Cloudflare Worker API (Hono)** through a single typed client.
 
-> **Honest status:** AI generation, video rendering, and YouTube publishing are **not connected**.
-> Cloud projects are implemented end-to-end in code and covered by tests, but **live sign-in is
-> unverified**: no OIDC client or Supabase Auth project is configured in this environment, and the
-> deployment answer is unconfirmed. The code in this branch has **not been deployed**; the only live
-> Worker ever probed is the owner's Freebuff-hosted site (22 Oct 2026, see
+> **Honest status:** cloud Story Bible and episode generation are implemented against a real
+> server-side Gemini adapter, and the free plan's 100 writing credits are server-enforced. **No AI call
+> has been made live in this environment** (`GEMINI_API_KEY`/`GEMINI_MODEL` are unset), and **live
+> sign-in is unverified**: no OIDC client is configured here and the deployment answer is unconfirmed.
+> With no provider, generation returns a truthful `provider_not_configured` and nothing is charged.
+> Image, voice, video rendering and YouTube publishing are **not connected**. The code in this branch
+> has **not been deployed** and `migrations/0003_story_generation.sql` has **not been applied** to any
+> database; the only live Worker ever probed is the owner's Freebuff-hosted site (22 Oct 2026, see
 > [`docs/audits/FREEBUFF_DATABASE_ACCESS_PROBE.md`](docs/audits/FREEBUFF_DATABASE_ACCESS_PROBE.md)).
 > Every capability is classified by verification level in
 > [`docs/audits/TASK-03-CAPABILITY-INVENTORY.md`](docs/audits/TASK-03-CAPABILITY-INVENTORY.md)
@@ -25,7 +28,7 @@ These commands were run in this repository on 22 October 2026 with the exit code
 |---|---|---|
 | Install dependencies | `bun install --frozen-lockfile` | 0 |
 | Typecheck | `bun run lint` (runs `tsc --noEmit`) | 0 |
-| Tests | `bun run test` (bun test, 189 tests / 12 suites) | 0 |
+| Tests | `bun run test` (bun test, 246 tests / 16 suites) | 0 |
 | Production build | `bun run build` (Vite) | 0 |
 | Dev server | `bun run dev` (serves `0.0.0.0:3000`) | 0 (HTTP 200 verified) |
 
@@ -42,7 +45,7 @@ bun run build                   # output in dist/
 
 ## Testing and CI
 
-- **Tests:** `bun run test` runs 189 tests across twelve suites:
+- **Tests:** `bun run test` runs 246 tests across sixteen suites:
   - `tests/honesty.test.ts` — scans application source and fails if fake-success strings,
     non-literal/unapproved `localStorage` keys, missing honest labels, or network I/O outside the single
     typed API client ever reappear.
@@ -69,6 +72,16 @@ bun run build                   # output in dist/
     against a header-derived identity, cookie handling, or token storage in the app.
   - `tests/cloud-workspace.test.ts` — every UI state (signed out, not configured, forbidden, empty, ready,
     transient error) and that a save is reported only after the server confirms it.
+  - `tests/story-generation.test.ts` — the real story routes against SQLite: project profiles, versioned
+    Story Bibles, episodes, durable jobs, exactly-once 100-credit issuance, concurrent reservations,
+    idempotent replays, failed-job refunds, no negative balance, provider failures, free-plan media
+    rejection, tenant isolation and forged ownership fields.
+  - `tests/ai-provider.test.ts` — the Gemini adapter with an injected fetch: key in a header (never the
+    URL), bounded output, auth/rate-limit/5xx/malformed/network/timeout mapping, and no key in errors.
+  - `tests/story-workspace.test.ts` — frontend Story Studio states: no fabricated success without saved
+    output, provider/credit/sign-in failures, key reuse only for uncertain requests, editing and approval.
+  - `tests/story-security.test.ts` — static guards that the provider key, model and host never reach
+    browser code, are not logged or persisted, and that plan/balance/cost cannot come from a body.
   - `tests/replication.test.ts` — outbox idempotency, retries with backoff, duplicate targets, and the
     last-success marker never advancing on failure.
   - `tests/supabase-backup.test.ts` — the PostgREST backup adapter against a fake fetch (no live backup).
@@ -90,9 +103,14 @@ bun run build                   # output in dist/
   in-memory R2. Per `docs/DEPLOYMENT.md` the D1 database and R2 bucket were provisioned on the owner's
   account and a local `wrangler dev` readiness probe reported `d1: ok` / `r2: ok`; that live
   provisioning has **not** been independently re-verified from the repository.
-- **Schema:** `migrations/0002_assets_and_replication.sql` is committed but **not applied to any live
-  database**. It reconciles the `assets` table (which TASK 12 created outside migration history) and
-  adds the replication outbox. Applying it needs the owner's authorization.
+- **Schema:** `migrations/0002_assets_and_replication.sql` and
+  `migrations/0003_story_generation.sql` are committed but **not applied to any live database**.
+  `0002` reconciles `assets` and adds the replication outbox; `0003` adds project profiles, versioned
+  Story Bibles/episodes, generation jobs, and the credit account/hold/ledger tables. Applying either
+  needs the owner's authorization; tests apply them to SQLite only.
+- **AI provider:** generation requires **both** `GEMINI_API_KEY` and an explicit `GEMINI_MODEL` as
+  server-side Worker secrets. No model is invented and no paid fallback is used. The browser never
+  calls the provider and never receives the key.
 - **Frontend:** static build (`bun run build` → `dist/`); hosting not configured yet.
 
 ## Secrets and environment
@@ -103,6 +121,8 @@ bun run build                   # output in dist/
   (all gitignored, including `.dev.vars*`, `*.pem`, `*.key`).
 - Never prefix a secret with `VITE_` (Vite would inline it into the browser bundle).
 - Never paste secrets into chat, issues, logs, screenshots, or telemetry; verify them by presence only.
+- Server-only AI variables: `GEMINI_API_KEY` and `GEMINI_MODEL`. Either both are set or generation is
+  honestly unavailable. Do not prefix them with `VITE_`.
 
 ## Repository layout
 

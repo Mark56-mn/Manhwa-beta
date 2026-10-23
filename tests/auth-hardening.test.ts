@@ -23,7 +23,11 @@ import { MemoryR2Bucket } from './helpers/r2';
  * fetches discovery/JWKS.
  */
 
-const MIGRATIONS = ['0001_init_tenancy.sql', '0002_assets_and_replication.sql'].map((file) =>
+const MIGRATIONS = [
+  '0001_init_tenancy.sql',
+  '0002_assets_and_replication.sql',
+  '0003_story_generation.sql'
+].map((file) =>
   readFileSync(join(import.meta.dir, '..', 'migrations', file), 'utf8')
 );
 

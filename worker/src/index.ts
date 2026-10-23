@@ -3,6 +3,7 @@ import type { Env } from './env';
 import { authConfigured, setupAuth } from './auth';
 import assetApp from './assets';
 import projectsApp from './projects';
+import storyApp from './story';
 import { allowedOrigins, corsHeadersFor, preflightHeadersFor } from './origins';
 
 
@@ -105,6 +106,11 @@ app.get('/readyz', async (c) => {
  * Project routes: the shared, tenant-scoped workflow the frontend calls.
  */
 app.route('/', projectsApp);
+
+/**
+ * Story Bible, episode, generation and credit routes (TASK 04).
+ */
+app.route('/', storyApp);
 
 /**
  * Asset routes (TASK 12): delegated to `worker/src/assets.ts`.

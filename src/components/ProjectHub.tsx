@@ -44,7 +44,7 @@ export function ProjectHub({
             Your Creative Universe
           </h1>
           <p className="text-sm text-slate-400 max-w-2xl">
-            Manage your webtoon series, build airtight story bibles, and draft episode scripts. The projects below are stored in this browser only; the shared workspace above is server-backed. AI generation, video rendering, and publishing are not connected in this build.
+            Manage your webtoon series, build airtight story bibles, and draft episode scripts. The projects below are stored in this browser only; the shared workspace above is server-backed. Cloud Story Bible and episode generation run on the server through a configured AI provider; video rendering and publishing are not connected in this build.
           </p>
         </div>
 

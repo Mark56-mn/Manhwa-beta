@@ -17,7 +17,11 @@ import { MemoryR2Bucket } from './helpers/r2';
  * the tests prove authorization logic — not the OIDC provider itself.
  */
 
-const MIGRATION_FILES = ['0001_init_tenancy.sql', '0002_assets_and_replication.sql'];
+const MIGRATION_FILES = [
+  '0001_init_tenancy.sql',
+  '0002_assets_and_replication.sql',
+  '0003_story_generation.sql'
+];
 
 function loadMigrations(): string[] {
   return MIGRATION_FILES.map((file) =>
@@ -213,6 +217,51 @@ describe('projects API — tenant isolation', () => {
     expect(row.organization_id).toBe('org-a');
     expect(row.created_by_sub).toBe('sub-a');
     expect(row.status).toBe('draft');
+  });
+
+  it('stores and updates project profile fields without affecting another tenant', async () => {
+    const created = await call(
+      projectsAs(user('sub-a')),
+      '/api/v1/projects',
+      mutation({
+        title: 'Profiled project',
+        genre: 'Noir',
+        description: 'A memory broker story.',
+        language: 'Korean',
+        targetAudience: 'Adults 18-34'
+      })
+    );
+    expect(created.status).toBe(201);
+    const project = (await created.json()).project;
+    expect(project).toMatchObject({
+      description: 'A memory broker story.',
+      language: 'Korean',
+      target_audience: 'Adults 18-34'
+    });
+
+    const patched = await call(projectsAs(user('sub-a')), `/api/v1/projects/${project.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Origin: APP_ORIGIN },
+      body: JSON.stringify({ targetAudience: 'Young adults', language: null })
+    });
+    expect(patched.status).toBe(200);
+    expect((await patched.json()).project).toMatchObject({
+      description: 'A memory broker story.',
+      language: null,
+      target_audience: 'Young adults'
+    });
+
+    const foreign = await call(projectsAs(user('sub-b')), `/api/v1/projects/${project.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Origin: APP_ORIGIN },
+      body: JSON.stringify({ description: 'Hijacked' })
+    });
+    expect(foreign.status).toBe(404);
+    expect(
+      db
+        .query("SELECT description FROM project_profiles WHERE project_id = ?")
+        .get(project.id) as { description: string }
+    ).toEqual({ description: 'A memory broker story.' });
   });
 
   it('updates and deletes the caller’s own project', async () => {

@@ -7,6 +7,7 @@ import {
   saveCloudProject,
   type CloudWorkspaceState
 } from '../lib/cloudWorkspace';
+import { StoryStudio } from './StoryStudio';
 
 /**
  * Shared workspace (server-backed projects).
@@ -34,6 +35,7 @@ export function CloudWorkspacePanel() {
   const [title, setTitle] = useState('');
   const [genre, setGenre] = useState('');
   const [saveState, setSaveState] = useState<SaveState>({ kind: 'idle' });
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -63,6 +65,7 @@ export function CloudWorkspacePanel() {
         ? { status: 'ready', projects: [result.project, ...previous.projects] }
         : previous
     );
+    setSelectedProjectId(result.project.id);
     setSaveState({ kind: 'saved', notice: result.notice });
     setTitle('');
     setGenre('');
@@ -184,6 +187,13 @@ export function CloudWorkspacePanel() {
                         {project.status.replace('_', ' ')}
                       </span>
                       <span>Updated {formatTimestamp(project.updated_at)}</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedProjectId(project.id)}
+                        className="px-2.5 py-1 text-[11px] font-semibold text-slate-900 bg-cyan-400 rounded-lg hover:bg-cyan-300 transition-colors"
+                      >
+                        Open Story Studio
+                      </button>
                     </div>
                   </li>
                 ))}
@@ -235,6 +245,44 @@ export function CloudWorkspacePanel() {
               <p role="alert" className="text-xs text-red-300">
                 {saveState.message}
               </p>
+            )}
+
+            {state.projects.length > 0 && (
+              <div className="pt-2 border-t border-slate-800">
+                {(() => {
+                  const selected = state.projects.find(
+                    (project) => project.id === selectedProjectId
+                  );
+                  if (!selected) {
+                    return (
+                      <p className="text-xs text-slate-400">
+                        Select a cloud project above to open its server-backed Story Studio.
+                      </p>
+                    );
+                  }
+                  return (
+                    <div className="space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <h3 className="text-sm font-bold text-white">
+                          Story Studio · {selected.title}
+                        </h3>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedProjectId(null)}
+                          className="text-[11px] text-slate-400 hover:text-white self-start sm:self-auto"
+                        >
+                          Close studio
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-slate-500">
+                        Story Bibles, episodes, jobs and writing credits here are stored on the shared
+                        server. They are not browser-local drafts.
+                      </p>
+                      <StoryStudio project={selected} />
+                    </div>
+                  );
+                })()}
+              </div>
             )}
           </div>
         )}

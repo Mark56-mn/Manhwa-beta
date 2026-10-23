@@ -12,7 +12,11 @@ import { join } from 'node:path';
  * foreign keys, CHECK constraints, and cascade behavior.
  */
 
-const MIGRATIONS = ['0001_init_tenancy.sql', '0002_assets_and_replication.sql'].map((file) =>
+const MIGRATIONS = [
+  '0001_init_tenancy.sql',
+  '0002_assets_and_replication.sql',
+  '0003_story_generation.sql'
+].map((file) =>
   readFileSync(join(import.meta.dir, '..', 'migrations', file), 'utf8')
 );
 
@@ -52,11 +56,18 @@ describe('migration creates the expected schema', () => {
     expect(tables).toEqual([
       'assets',
       'audit_events',
+      'credit_accounts',
+      'credit_holds',
+      'credit_ledger',
+      'episodes',
+      'generation_jobs',
       'organization_memberships',
       'organizations',
+      'project_profiles',
       'projects',
       'replication_outbox',
       'replication_state',
+      'story_bibles',
       'users',
     ]);
   });
@@ -69,10 +80,15 @@ describe('migration creates the expected schema', () => {
       'idx_assets_org',
       'idx_assets_project',
       'idx_audit_org_created',
+      'idx_episodes_project',
+      'idx_jobs_org_created',
+      'idx_jobs_project',
+      'idx_ledger_org_created',
       'idx_memberships_org',
       'idx_memberships_user',
       'idx_outbox_pending',
       'idx_projects_org',
+      'idx_story_bibles_project',
     ]);
   });
 });

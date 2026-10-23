@@ -37,6 +37,9 @@ export interface ProjectRow {
   created_by_sub: string | null;
   created_at: string;
   updated_at: string;
+  description: string | null;
+  language: string | null;
+  target_audience: string | null;
 }
 
 export interface PublicProject {
@@ -44,6 +47,9 @@ export interface PublicProject {
   title: string;
   genre: string | null;
   status: ProjectStatus;
+  description: string | null;
+  language: string | null;
+  target_audience: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -55,6 +61,9 @@ export interface ProjectsDeps {
 
 const MAX_TITLE_LENGTH = 200;
 const MAX_GENRE_LENGTH = 80;
+const MAX_DESCRIPTION_LENGTH = 4000;
+const MAX_LANGUAGE_LENGTH = 40;
+const MAX_AUDIENCE_LENGTH = 200;
 
 function isoTimestamp(now: Date = new Date()): string {
   return now.toISOString().replace(/\.\d{3}Z$/, 'Z');
@@ -66,6 +75,9 @@ function toPublicProject(row: ProjectRow): PublicProject {
     title: row.title,
     genre: row.genre ?? null,
     status: row.status,
+    description: row.description ?? null,
+    language: row.language ?? null,
+    target_audience: row.target_audience ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at
   };
@@ -102,6 +114,23 @@ function cleanGenre(value: unknown): { ok: true; value: string | null } | { ok: 
 
 function isProjectStatus(value: unknown): value is ProjectStatus {
   return typeof value === 'string' && (PROJECT_STATUSES as readonly string[]).includes(value);
+}
+
+/**
+ * undefined = field not supplied, null = clear, string = new value.
+ * Bounded so a project profile can never become an unbounded blob.
+ */
+function cleanOptionalText(
+  value: unknown,
+  max: number
+): { ok: true; value: string | null | undefined } | { ok: false } {
+  if (value === undefined) return { ok: true, value: undefined };
+  if (value === null) return { ok: true, value: null };
+  if (typeof value !== 'string') return { ok: false };
+  const text = value.trim();
+  if (text.length === 0) return { ok: true, value: null };
+  if (text.length > max) return { ok: false };
+  return { ok: true, value: text };
 }
 
 type Access =
@@ -170,13 +199,36 @@ export function createProjectsApp(
     return { ok: true, user, organizationId };
   }
 
+  const PROJECT_SELECT = `SELECT p.id, p.organization_id, p.title, p.genre, p.status,
+      p.created_by_sub, p.created_at, p.updated_at,
+      pr.description, pr.language, pr.target_audience
+    FROM projects p LEFT JOIN project_profiles pr ON pr.project_id = p.id`;
+
   async function findProject(env: Env, organizationId: string, projectId: string) {
     return env.DB!.prepare(
-      `SELECT id, organization_id, title, genre, status, created_by_sub, created_at, updated_at
-       FROM projects WHERE id = ? AND organization_id = ?`
+      `${PROJECT_SELECT} WHERE p.id = ? AND p.organization_id = ?`
     )
       .bind(projectId, organizationId)
       .first<ProjectRow | null>();
+  }
+
+  async function saveProfile(
+    env: Env,
+    projectId: string,
+    values: { description: string | null; language: string | null; targetAudience: string | null },
+    at: string
+  ): Promise<void> {
+    await env.DB!.prepare(
+      `INSERT INTO project_profiles (project_id, description, language, target_audience, updated_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (project_id) DO UPDATE SET
+         description = excluded.description,
+         language = excluded.language,
+         target_audience = excluded.target_audience,
+         updated_at = excluded.updated_at`
+    )
+      .bind(projectId, values.description, values.language, values.targetAudience, at)
+      .run();
   }
 
   app.get('/api/v1/projects', async (c) => {
@@ -184,8 +236,7 @@ export function createProjectsApp(
     if (!access.ok) return access.response;
 
     const rows = (await c.env.DB!.prepare(
-      `SELECT id, organization_id, title, genre, status, created_by_sub, created_at, updated_at
-       FROM projects WHERE organization_id = ? ORDER BY updated_at DESC, id DESC`
+      `${PROJECT_SELECT} WHERE p.organization_id = ? ORDER BY p.updated_at DESC, p.id DESC`
     )
       .bind(access.organizationId)
       .all<ProjectRow>()) as unknown as ProjectRow[];
@@ -224,6 +275,18 @@ export function createProjectsApp(
         400
       );
     }
+    const description = cleanOptionalText(body.description, MAX_DESCRIPTION_LENGTH);
+    const language = cleanOptionalText(body.language, MAX_LANGUAGE_LENGTH);
+    const targetAudience = cleanOptionalText(body.targetAudience, MAX_AUDIENCE_LENGTH);
+    if (!description.ok || !language.ok || !targetAudience.ok) {
+      return c.json(
+        {
+          error: 'bad_request',
+          detail: `description (<=${MAX_DESCRIPTION_LENGTH}), language (<=${MAX_LANGUAGE_LENGTH}) and targetAudience (<=${MAX_AUDIENCE_LENGTH}) must be strings.`
+        },
+        400
+      );
+    }
 
     const id = `proj-${crypto.randomUUID()}`;
     const now = isoTimestamp();
@@ -233,6 +296,23 @@ export function createProjectsApp(
     )
       .bind(id, access.organizationId, title, genre.value, access.user.sub, now, now)
       .run();
+
+    if (
+      description.value !== undefined ||
+      language.value !== undefined ||
+      targetAudience.value !== undefined
+    ) {
+      await saveProfile(
+        c.env,
+        id,
+        {
+          description: description.value ?? null,
+          language: language.value ?? null,
+          targetAudience: targetAudience.value ?? null
+        },
+        now
+      );
+    }
 
     const created = await findProject(c.env, access.organizationId, id);
     if (!created) {
@@ -305,15 +385,51 @@ export function createProjectsApp(
       values.push(body.status);
     }
 
-    if (updates.length === 0) {
+    const description = cleanOptionalText(body.description, MAX_DESCRIPTION_LENGTH);
+    const language = cleanOptionalText(body.language, MAX_LANGUAGE_LENGTH);
+    const targetAudience = cleanOptionalText(body.targetAudience, MAX_AUDIENCE_LENGTH);
+    if (!description.ok || !language.ok || !targetAudience.ok) {
       return c.json(
-        { error: 'bad_request', detail: 'No updatable field supplied (title, genre, status).' },
+        { error: 'bad_request', detail: 'Project profile fields are invalid or too long.' },
+        400
+      );
+    }
+    const profileChanged =
+      description.value !== undefined ||
+      language.value !== undefined ||
+      targetAudience.value !== undefined;
+
+    if (updates.length === 0 && !profileChanged) {
+      return c.json(
+        {
+          error: 'bad_request',
+          detail:
+            'No updatable field supplied (title, genre, status, description, language, targetAudience).'
+        },
         400
       );
     }
 
+    const at = isoTimestamp();
+    if (profileChanged) {
+      await saveProfile(
+        c.env,
+        existing.id,
+        {
+          description:
+            description.value === undefined ? existing.description : description.value,
+          language: language.value === undefined ? existing.language : language.value,
+          targetAudience:
+            targetAudience.value === undefined
+              ? existing.target_audience
+              : targetAudience.value
+        },
+        at
+      );
+    }
+
     updates.push('updated_at = ?');
-    values.push(isoTimestamp(), existing.id, access.organizationId);
+    values.push(at, existing.id, access.organizationId);
 
     await c.env.DB!.prepare(
       `UPDATE projects SET ${updates.join(', ')} WHERE id = ? AND organization_id = ?`
