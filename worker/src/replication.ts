@@ -210,7 +210,7 @@ export async function runReplicationBatch(
               idempotency_key, created_at, attempts
        FROM replication_outbox
        WHERE target = ? AND replicated_at IS NULL
-       ORDER BY created_at, id
+       ORDER BY created_at, entity_table, entity_id
        LIMIT ?`
     )
     .bind(target.name, batchSize)
