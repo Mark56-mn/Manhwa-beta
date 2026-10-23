@@ -218,6 +218,9 @@ export function StoryStudio({ project }: StoryStudioProps) {
     const controller = new AbortController();
     setBoard({ status: 'loading' });
     setDraft(null);
+    // Never carry another project's saved profile values into this form.
+    setProfileDraft({ description: '', language: '', targetAudience: '' });
+    setProfileNotice({ kind: 'idle' });
     void loadStoryBoard(api, project.id, controller.signal).then((next) => {
       if (controller.signal.aborted) return;
       setBoard(next);
