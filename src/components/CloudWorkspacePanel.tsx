@@ -98,12 +98,20 @@ export function CloudWorkspacePanel() {
         )}
 
         {state.status === 'signed_out' && (
-          <div className="flex items-start gap-2 text-xs text-amber-300" role="status">
-            <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0" />
-            <span>
-              Not signed in to the shared API. Cloud projects stay unavailable, and nothing is
-              stored or displayed as saved until a real session exists.
-            </span>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" role="status">
+            <p className="flex items-start gap-2 text-xs text-amber-300">
+              <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>
+                Not signed in to the shared API. Cloud projects stay unavailable, and nothing is
+                stored or displayed as saved until a real session exists.
+              </span>
+            </p>
+            <a
+              href={`${api.baseUrl}/auth/freebuff/signin?returnTo=%2F`}
+              className="px-3 py-1.5 text-xs font-semibold text-slate-900 bg-cyan-400 rounded-lg hover:bg-cyan-300 transition-colors shrink-0"
+            >
+              Sign in with Freebuff
+            </a>
           </div>
         )}
 

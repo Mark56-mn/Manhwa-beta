@@ -22,6 +22,7 @@ export default defineConfig(() => {
       // production layout. Has no effect on `vite build` or production hosting.
       proxy: {
         '/api': { target: 'http://127.0.0.1:8787', changeOrigin: false },
+        '/auth': { target: 'http://127.0.0.1:8787', changeOrigin: false },
       },
     },
   };

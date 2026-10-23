@@ -3,7 +3,7 @@ import type { Env } from './env';
 import { authConfigured, setupAuth } from './auth';
 import assetApp from './assets';
 import projectsApp from './projects';
-import { corsHeadersFor, preflightHeadersFor } from './origins';
+import { allowedOrigins, corsHeadersFor, preflightHeadersFor } from './origins';
 
 
 /**
@@ -26,6 +26,10 @@ const app = new Hono<{ Bindings: Env }>();
  * here (their mutations are still gated by the route-level origin guard).
  */
 app.use('*', async (c, next) => {
+  // Responses are origin-dependent, including refusals, so every response is
+  // marked `Vary: Origin` to keep shared caches from mixing them up.
+  c.header('Vary', 'Origin');
+
   const origin = c.req.header('Origin');
   if (origin) {
     if (c.req.method === 'OPTIONS') {
@@ -39,8 +43,6 @@ app.use('*', async (c, next) => {
     if (headers) {
       for (const [name, value] of Object.entries(headers)) c.header(name, value);
     }
-  } else {
-    c.header('Vary', 'Origin');
   }
   await next();
 });
@@ -81,12 +83,19 @@ app.get('/readyz', async (c) => {
   }
 
   checks.r2 = env.FILES
-    ? { status: 'ok', detail: 'R2 binding attached (bucket manhwa-studio-assets).' }
+    ? { status: 'ok', detail: 'R2 binding attached.' }
     : { status: 'not_configured', detail: 'No R2 binding attached (TASK 12).' };
 
   checks.auth = authConfigured(env)
     ? { status: 'ok', detail: 'Sign in with Freebuff client configured.' }
-    : { status: 'not_configured', detail: 'No Freebuff OIDC client configured (registered by the owner; see TASK-07 handoff).' };
+    : { status: 'not_configured', detail: 'No valid Freebuff OIDC client configured (registered by the owner; see TASK-07 handoff).' };
+
+  // Public, count-only view of the CORS allow-list. Origin values are not
+  // disclosed; a misconfiguration is visible without guessing.
+  const origins = allowedOrigins(env);
+  checks.origins = origins.length > 0
+    ? { status: 'ok', detail: `${origins.length} exact origin(s) allowed.` }
+    : { status: 'not_configured', detail: 'No valid APP_ORIGIN/ALLOWED_ORIGINS; mutations will be rejected.' };
 
   const d1Ok = checks.d1.status === 'ok';
   return c.json({ status: d1Ok ? 'ready' : 'degraded', checks }, d1Ok ? 200 : 503);
@@ -108,20 +117,28 @@ app.all('/api/v1/assets/*', async (c) => {
 });
 
 /**
- * Auth routes: answered honestly by this worker until the owner registers a
- * client. When configured, the SDK's wrap() intercepts /auth/freebuff/*
- * before the inner app, so this branch is only reached when not configured.
+ * Auth routes: the SDK's wrap() intercepts the four real routes
+ * (/auth/freebuff/signin|callback|signout|session) before this inner app, so
+ * this branch is a fallback only.
+ *
+ *  - No valid client configured -> 503 `auth_not_configured` (never a fake login).
+ *  - Configured but unknown path (e.g. /auth/freebuff/login) -> 404. Reporting
+ *    "not configured" here would be false and previously misled the probe.
  */
-app.all('/auth/freebuff/*', (c) =>
-  c.json(
-    {
-      error: 'auth_not_configured',
-      detail:
-        'Sign in with Freebuff client IDs must be registered by the project owner (npx @freebuff/auth register, or Freebuff Desktop). See docs/handoffs/TASK-07-HANDOFF.md.'
-    },
-    503
-  )
-);
+app.all('/auth/freebuff/*', (c) => {
+  c.header('Cache-Control', 'private, no-store');
+  if (!authConfigured(c.env)) {
+    return c.json(
+      {
+        error: 'auth_not_configured',
+        detail:
+          'Sign in with Freebuff client IDs must be registered by the project owner (npx @freebuff/auth register, or Freebuff Desktop). See docs/handoffs/TASK-07-HANDOFF.md.'
+      },
+      503
+    );
+  }
+  return c.json({ error: 'not_found', detail: 'No auth route exists at this path.' }, 404);
+});
 
 /**
  * Protected example route: the pattern every future user-data route must

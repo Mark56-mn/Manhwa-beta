@@ -253,6 +253,20 @@ export function createProjectsApp(
       return c.json({ error: 'bad_request', detail: 'Expected a JSON object body.' }, 400);
     }
 
+    // Ownership is derived from the verified session and is never writable.
+    // Reject explicitly instead of silently ignoring (mass-assignment guard).
+    const ownershipFields = ['organization_id', 'created_by_sub', 'organizationId', 'createdBySub', 'user_id'];
+    const attempted = ownershipFields.filter((field) => body[field] !== undefined);
+    if (attempted.length > 0) {
+      return c.json(
+        {
+          error: 'bad_request',
+          detail: `Ownership fields cannot be changed: ${attempted.join(', ')}.`
+        },
+        400
+      );
+    }
+
     const updates: string[] = [];
     const values: unknown[] = [];
 

@@ -53,6 +53,23 @@ export function allowedOrigins(env: Env): string[] {
   return result;
 }
 
+/** True when the value is a bare http(s) origin (no path, query or credentials). */
+export function isValidOrigin(value: string | undefined | null): boolean {
+  if (!value) return false;
+  return normalizeOrigin(value) !== null;
+}
+
+/** True for an absolute http(s) URL; paths are allowed (used for the issuer). */
+export function isValidHttpUrl(value: string | undefined | null): boolean {
+  if (!value) return false;
+  try {
+    const url = new URL(value.trim());
+    return (url.protocol === 'https:' || url.protocol === 'http:') && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
 export function isAllowedOrigin(origin: string | undefined | null, env: Env): boolean {
   if (!origin) return false;
   const normalized = normalizeOrigin(origin);
@@ -86,9 +103,25 @@ export function preflightHeadersFor(
 }
 
 /**
- * CSRF / same-origin guard for state-changing routes: the request must carry
- * an Origin that is on the allow-list. No "if header missing, allow" branch.
+ * CSRF / same-origin guard for state-changing routes.
+ *
+ * A concrete Origin must be exactly on the allow-list. A page served with
+ * `Referrer-Policy: no-referrer` posts `Origin: null` even to its own origin,
+ * so — matching the provider's documented `isSameOriginRequest` contract —
+ * `Origin: null`/absent is accepted only when the browser asserts
+ * `Sec-Fetch-Site: same-origin` AND this API itself is served from an
+ * allow-listed origin. `Sec-Fetch-Site` is browser-set; a non-browser caller
+ * can spoof it but has no ambient session cookie to abuse. An unlisted Origin
+ * always wins and is rejected.
  */
 export function isAllowedMutationOrigin(request: Request, env: Env): boolean {
-  return isAllowedOrigin(request.headers.get('Origin'), env);
+  const origin = request.headers.get('Origin');
+  if (origin && origin !== 'null') return isAllowedOrigin(origin, env);
+
+  if (request.headers.get('Sec-Fetch-Site') !== 'same-origin') return false;
+  try {
+    return isAllowedOrigin(new URL(request.url).origin, env);
+  } catch {
+    return false;
+  }
 }

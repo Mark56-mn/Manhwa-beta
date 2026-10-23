@@ -25,7 +25,7 @@ These commands were run in this repository on 22 October 2026 with the exit code
 |---|---|---|
 | Install dependencies | `bun install --frozen-lockfile` | 0 |
 | Typecheck | `bun run lint` (runs `tsc --noEmit`) | 0 |
-| Tests | `bun run test` (bun test, 145 tests / 11 suites) | 0 |
+| Tests | `bun run test` (bun test, 189 tests / 12 suites) | 0 |
 | Production build | `bun run build` (Vite) | 0 |
 | Dev server | `bun run dev` (serves `0.0.0.0:3000`) | 0 (HTTP 200 verified) |
 
@@ -42,7 +42,7 @@ bun run build                   # output in dist/
 
 ## Testing and CI
 
-- **Tests:** `bun run test` runs 145 tests across eleven suites:
+- **Tests:** `bun run test` runs 189 tests across twelve suites:
   - `tests/honesty.test.ts` — scans application source and fails if fake-success strings,
     non-literal/unapproved `localStorage` keys, missing honest labels, or network I/O outside the single
     typed API client ever reappear.
@@ -62,6 +62,11 @@ bun run build                   # output in dist/
     wildcard origin is never emitted.
   - `tests/api-client.test.ts` — the typed client: 401/403/503 mapping, network/timeout/cancellation,
     malformed responses, credentials, and no token in browser code.
+  - `tests/auth-hardening.test.ts` — identity normalization and configuration validation; spoofed
+    headers/cookies rejected; every protected route 401s when signed out; cross-tenant project and
+    asset ID guessing denied; ownership fields rejected; the no-referrer CSRF path; CORS on 401 and
+    preflight short-circuiting; truthful auth-route fallback; readiness reporting; and static guards
+    against a header-derived identity, cookie handling, or token storage in the app.
   - `tests/cloud-workspace.test.ts` — every UI state (signed out, not configured, forbidden, empty, ready,
     transient error) and that a save is reported only after the server confirms it.
   - `tests/replication.test.ts` — outbox idempotency, retries with backoff, duplicate targets, and the
@@ -105,7 +110,7 @@ bun run build                   # output in dist/
 src/                 React app (App shell, components, demo seed data, types)
 worker/              Cloudflare Worker API (Hono): health/readiness, auth-ready routes
 migrations/          D1 SQL migrations (applied to the real database in TASK 07)
-tests/               bun test suites (honesty, sanitizer, seed data, D1 tenancy, R2 assets)
+tests/               bun test suites (honesty, storage, seed, tenancy, assets, projects, origins, auth, backup)
 scripts/             Operator helpers (e.g. store-secrets.sh)
 tasks/               Authoritative task definitions + roadmap reconciliation
 docs/audits/         Implementation reports + capability inventory (per task)
