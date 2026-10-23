@@ -9,7 +9,7 @@
 | Branch | `task/TASK-04-PERSISTENT-STORY-GENERATION` |
 | Base commit | `3e26b77a12f517f775da212bc0e6e580f8d020cf` (TASK 03 tip) |
 | Implementation commit | `fbd9cf941b602abfadd27b1e27ccd810cc2bc25a` |
-| Report/handoff | one Markdown-only commit above the implementation commit (branch tip) |
+| Report/handoff | Markdown-only commits above the implementation commit; a later commit also resets the Story Studio profile form on project switch. Run `git log` for the exact final tip. |
 | `origin/main` | `49ed52c9f960b8e50ab61a21a6f2bfc7128fa5a2` — not merged |
 | Merge / deploy / migration | **none performed** |
 
