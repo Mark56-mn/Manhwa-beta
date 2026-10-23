@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { Env } from '../worker/src/env';
+import { createAssetApp } from '../worker/src/assets';
 
 // Minimal in-memory D1 shim used by these tests.
 // D1 is SQLite; this is a plain JS map that mimics the subset our asset
@@ -272,7 +273,16 @@ function makeEnv(d1?: InMemoryDB, files?: MockR2Bucket, user?: { sub: string; na
   } as Env;
 }
 
-const assetApp = require('../worker/src/assets').default;
+// The route tests inject identity explicitly; production uses resolveFreebuffUser.
+// AUTH_USER_OVERRIDE is read here only, never inside worker code.
+const assetApp = createAssetApp({
+  resolveUser: async (_request, env) => {
+    const candidate = (env as unknown as {
+      AUTH_USER_OVERRIDE?: { sub: string; name?: string | null };
+    }).AUTH_USER_OVERRIDE;
+    return candidate ?? null;
+  },
+});
 
 describe('asset routes (TASK 12)', () => {
   it('returns 503 not_configured when FILES binding is missing', async () => {

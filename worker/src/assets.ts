@@ -14,23 +14,10 @@
 
 import { Hono } from 'hono';
 import type { Env } from './env';
-import { authConfigured, setupAuth } from './auth';
-
-/**
- * Resolve the authenticated user for asset routes.
- *
- * Production path: verify the current Freebuff session via the SDK (never
- * refreshes, only verifies the access token).
- * Test path: when AUTH_USER_OVERRIDE is set (TASK-12 tests only), return it
- * directly — never consult the SDK. This is the only sanctioned way to run
- * the asset route tests without a real Freebuff session.
- */
-async function getUser(c: { env: Env; req: { raw: Request } }): Promise<{ sub: string; name?: string | null } | null> {
-  if (c.env.AUTH_USER_OVERRIDE) return c.env.AUTH_USER_OVERRIDE;
-  const auth = setupAuth(c.env);
-  const result = await auth.getUser(c.req.raw) as { sub: string; name?: string | null } | null;
-  return result;
-}
+import { authConfigured } from './auth';
+import { resolveFreebuffUser, type AuthenticatedUser, type UserResolver } from './identity';
+import { firstOrganizationForUser } from './tenancy';
+import { isAllowedMutationOrigin } from './origins';
 
 const ASSET_CONTENT_TYPE_ALLOWLIST = new Set([
   'image/png',
@@ -52,24 +39,6 @@ function buildR2Key(orgId: string, projectId: string, assetId: string, filename:
   const ext = filename.includes('.') ? filename.slice(filename.lastIndexOf('.') + 1).toLowerCase() : '';
   const extClean = ext.replace(/[^a-z0-9]/g, '');
   return `org/${orgId}/proj/${projectId}/asset/${assetId}/${assetId}${extClean ? '.' + extClean : ''}`;
-}
-
-async function organizationForUser(env: Env, userSub: string): Promise<string | null> {
-  const row = await env.DB!.prepare(
-    `SELECT organization_id FROM organization_memberships WHERE user_sub = ? LIMIT 1`
-  )
-    .bind(userSub)
-    .first<{ organization_id: string } | null>();
-  return row?.organization_id ?? null;
-}
-
-async function membership(env: Env, orgId: string, userSub: string): Promise<boolean> {
-  const row = await env.DB!.prepare(
-    `SELECT 1 FROM organization_memberships WHERE organization_id = ? AND user_sub = ?`
-  )
-    .bind(orgId, userSub)
-    .first<{ "1": number } | null>();
-  return row != null;
 }
 
 type AssetRow = {
@@ -131,7 +100,17 @@ function isAllowedContentType(type: string): boolean {
   return ASSET_CONTENT_TYPE_ALLOWLIST.has(t);
 }
 
-const app = new Hono<{ Bindings: Env }>();
+export function createAssetApp(
+  deps: { resolveUser: UserResolver } = { resolveUser: resolveFreebuffUser }
+): Hono<{ Bindings: Env }> {
+  const app = new Hono<{ Bindings: Env }>();
+
+  /**
+   * Production default: verify the session via the shared identity module.
+   * Tests inject a resolver, so no environment flag can ever mint a user.
+   */
+  const getUser = (c: { env: Env; req: { raw: Request } }): Promise<AuthenticatedUser | null> =>
+    deps.resolveUser(c.req.raw, c.env);
 
 /** List assets for the caller's organization (read-scoped, auth required). */
 app.get('/api/v1/assets', async (c) => {
@@ -148,7 +127,7 @@ app.get('/api/v1/assets', async (c) => {
 
   const user = await getUser(c);
   if (!user) return c.json({ error: 'unauthorized' }, 401);
-  const orgId = await organizationForUser(c.env, user.sub);
+  const orgId = await firstOrganizationForUser(c.env, user.sub);
   if (!orgId) return c.json({ error: 'forbidden', detail: 'Not a member of any organization.' }, 403);
 
   const assets = (await assetsByOrganization(c.env, orgId)).map((a) => ({ ...a, etag: a.etag ?? null }));
@@ -170,7 +149,7 @@ app.get('/api/v1/assets/:id', async (c) => {
 
   const user = await getUser(c);
   if (!user) return c.json({ error: 'unauthorized' }, 401);
-  const orgId = await organizationForUser(c.env, user.sub);
+  const orgId = await firstOrganizationForUser(c.env, user.sub);
   if (!orgId) return c.json({ error: 'forbidden', detail: 'Not a member of any organization.' }, 403);
 
   const asset = await assetById(c.env, c.req.param('id'));
@@ -207,7 +186,7 @@ app.on('HEAD', '/api/v1/assets/:id', async (c) => {
 
   const user = await getUser(c);
   if (!user) return c.json({ error: 'unauthorized' }, 401);
-  const orgId = await organizationForUser(c.env, user.sub);
+  const orgId = await firstOrganizationForUser(c.env, user.sub);
   if (!orgId) return c.json({ error: 'forbidden', detail: 'Not a member of any organization.' }, 403);
 
   const asset = await assetById(c.env, c.req.param('id'));
@@ -243,19 +222,14 @@ app.put('/api/v1/assets', async (c) => {
     return c.json({ error: 'not_configured', detail: 'APP_ORIGIN not configured; mutating routes blocked.' }, 503);
   }
 
-  // Same-origin guard for mutations (c.env.APP_ORIGIN is the deployed origin).
-  try {
-    const origin = c.req.header('Origin');
-    if (origin && origin !== c.env.APP_ORIGIN) {
-      return c.json({ error: 'forbidden', detail: 'Mutations only allowed from the app origin.' }, 403);
-    }
-  } catch {
-    // If we cannot read Origin at all, allow — the 401/auth gate below still applies.
+  // Same-origin / CSRF guard: the Origin must be on the exact allow-list.
+  if (!isAllowedMutationOrigin(c.req.raw, c.env)) {
+    return c.json({ error: 'forbidden', detail: 'Mutations only allowed from an allow-listed app origin.' }, 403);
   }
 
   const user = await getUser(c);
   if (!user) return c.json({ error: 'unauthorized' }, 401);
-  const orgId = await organizationForUser(c.env, user.sub);
+  const orgId = await firstOrganizationForUser(c.env, user.sub);
   if (!orgId) return c.json({ error: 'forbidden', detail: 'Not a member of any organization.' }, 403);
 
   // Project must be supplied and belong to the caller's org.
@@ -334,18 +308,13 @@ app.delete('/api/v1/assets/:id', async (c) => {
     return c.json({ error: 'not_configured', detail: 'APP_ORIGIN not configured; mutating routes blocked.' }, 503);
   }
 
-  try {
-    const origin = c.req.header('Origin');
-    if (origin && origin !== c.env.APP_ORIGIN) {
-      return c.json({ error: 'forbidden', detail: 'Mutations only allowed from the app origin.' }, 403);
-    }
-  } catch {
-    // allow through; auth gate below still applies
+  if (!isAllowedMutationOrigin(c.req.raw, c.env)) {
+    return c.json({ error: 'forbidden', detail: 'Mutations only allowed from an allow-listed app origin.' }, 403);
   }
 
   const user = await getUser(c);
   if (!user) return c.json({ error: 'unauthorized' }, 401);
-  const orgId = await organizationForUser(c.env, user.sub);
+  const orgId = await firstOrganizationForUser(c.env, user.sub);
   if (!orgId) return c.json({ error: 'forbidden', detail: 'Not a member of any organization.' }, 403);
 
   const asset = await assetById(c.env, c.req.param('id'));
@@ -359,4 +328,7 @@ app.delete('/api/v1/assets/:id', async (c) => {
   return c.json({ deleted: asset.id });
 });
 
-export default app;
+  return app;
+}
+
+export default createAssetApp();

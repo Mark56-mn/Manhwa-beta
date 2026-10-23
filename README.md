@@ -1,14 +1,17 @@
 # Manhwa Studio (Manhwa Beta)
 
 A creator workspace for manhwa/moon-comic projects: story bibles, episode scripts, character
-continuity, analytics, and approval records — currently a **frontend-only React app persisting to
-browser `localStorage`**, plus a **Cloudflare Worker API (Hono) foundation that the UI does not call
-yet**.
+continuity, analytics, and approval records. Local project drafts live in browser `localStorage`;
+one real workflow — the **shared cloud-project list/create panel** — calls the **Cloudflare Worker API
+(Hono)** through a single typed client.
 
-> **Honest status:** AI generation, cloud persistence from the UI, authentication, video rendering, and
-> YouTube publishing are **not connected** in this build. The Worker, D1 schema and R2 asset routes
-> exist and are covered by tests, but **no Worker has been deployed** and no sign-in client is
-> registered. Every capability is classified by verification level in
+> **Honest status:** AI generation, video rendering, and YouTube publishing are **not connected**.
+> Cloud projects are implemented end-to-end in code and covered by tests, but **live sign-in is
+> unverified**: no OIDC client or Supabase Auth project is configured in this environment, and the
+> deployment answer is unconfirmed. The code in this branch has **not been deployed**; the only live
+> Worker ever probed is the owner's Freebuff-hosted site (22 Oct 2026, see
+> [`docs/audits/FREEBUFF_DATABASE_ACCESS_PROBE.md`](docs/audits/FREEBUFF_DATABASE_ACCESS_PROBE.md)).
+> Every capability is classified by verification level in
 > [`docs/audits/TASK-03-CAPABILITY-INVENTORY.md`](docs/audits/TASK-03-CAPABILITY-INVENTORY.md)
 > (see its 22 October 2026 reconciliation section).
 > The implementation source of truth is the consolidated blueprint (Phase 0–4 roadmap in
@@ -22,7 +25,7 @@ These commands were run in this repository on 22 October 2026 with the exit code
 |---|---|---|
 | Install dependencies | `bun install --frozen-lockfile` | 0 |
 | Typecheck | `bun run lint` (runs `tsc --noEmit`) | 0 |
-| Tests | `bun run test` (bun test, 59 tests / 5 suites) | 0 |
+| Tests | `bun run test` (bun test, 145 tests / 11 suites) | 0 |
 | Production build | `bun run build` (Vite) | 0 |
 | Dev server | `bun run dev` (serves `0.0.0.0:3000`) | 0 (HTTP 200 verified) |
 
@@ -39,18 +42,31 @@ bun run build                   # output in dist/
 
 ## Testing and CI
 
-- **Tests:** `bun run test` runs 59 tests across five suites:
-  - `tests/honesty.test.ts` — scans application source and fails if fake-success strings, network calls,
-    non-literal/unapproved `localStorage` keys, or missing honest labels ever reappear (automated version
-    of the TASK 02/03 manual greps).
+- **Tests:** `bun run test` runs 145 tests across eleven suites:
+  - `tests/honesty.test.ts` — scans application source and fails if fake-success strings,
+    non-literal/unapproved `localStorage` keys, missing honest labels, or network I/O outside the single
+    typed API client ever reappear.
   - `tests/storage.test.ts` — the stored-project sanitizer (resets only fabricated publication fields,
     never mutates input, tolerates malformed stored data).
   - `tests/seed-data.test.ts` — demo seed data makes no publication claims and has a consistent shape.
-  - `tests/tenancy.test.ts` — the real D1 migration executed against SQLite: tenant isolation, sub-keyed
-    membership checks, CHECK/foreign-key/unique enforcement, and cascade deletes.
+  - `tests/tenancy.test.ts` — both real D1 migrations executed against SQLite: tenant isolation,
+    sub-keyed membership checks, CHECK/foreign-key/unique enforcement, cascades, and replication schema
+    constraints.
   - `tests/asset.test.ts` — the R2-backed asset routes: honest 503s when a binding or the auth client is
     missing, 401 when signed out, cross-organization 403s, org-scoped listing, upload round-trip,
-    content-type allow-list, 10 MiB cap (413), deletion, and the same-origin mutation guard.
+    content-type allow-list, 10 MiB cap (413), deletion, and the exact-origin mutation guard.
+  - `tests/projects.test.ts` — the shared projects API against real SQLite: 401/503/403 gates, Tenant A
+    cannot read/modify/delete Tenant B's projects or assets, creation is scoped to the session tenant,
+    browser-supplied identity headers are ignored, and the origin guard.
+  - `tests/origins.test.ts` — exact-origin parsing, credentialed preflight, and the guarantee that a
+    wildcard origin is never emitted.
+  - `tests/api-client.test.ts` — the typed client: 401/403/503 mapping, network/timeout/cancellation,
+    malformed responses, credentials, and no token in browser code.
+  - `tests/cloud-workspace.test.ts` — every UI state (signed out, not configured, forbidden, empty, ready,
+    transient error) and that a save is reported only after the server confirms it.
+  - `tests/replication.test.ts` — outbox idempotency, retries with backoff, duplicate targets, and the
+    last-success marker never advancing on failure.
+  - `tests/supabase-backup.test.ts` — the PostgREST backup adapter against a fake fetch (no live backup).
 - **No hosted CI.** GitHub Actions is deliberately not part of this project's validation workflow
   (the only workflow file, `ci.yml`, was removed in ROADMAP TASK 01; the account-level Actions billing
   lock meant jobs never started). Validation is performed by the coding agent and by the project's own
@@ -65,10 +81,13 @@ bun run build                   # output in dist/
   binding status). **No deployment has been performed** — see `docs/DEPLOYMENT.md` for the documented
   (unexecuted) deploy and rollback procedures.
 - **Bindings:** `DB` (D1) and `FILES` (R2) are wired in `wrangler.toml` and exercised by
-  `tests/tenancy.test.ts` / `tests/asset.test.ts` against local shims. Per `docs/DEPLOYMENT.md` the D1
-  database and R2 bucket were provisioned on the owner's account and a local `wrangler dev` readiness
-  probe reported `d1: ok` / `r2: ok`; that live provisioning has **not** been independently re-verified
-  from the repository, and no route in the React app calls the API yet.
+  `tests/tenancy.test.ts` / `tests/projects.test.ts` / `tests/asset.test.ts` against real SQLite and
+  in-memory R2. Per `docs/DEPLOYMENT.md` the D1 database and R2 bucket were provisioned on the owner's
+  account and a local `wrangler dev` readiness probe reported `d1: ok` / `r2: ok`; that live
+  provisioning has **not** been independently re-verified from the repository.
+- **Schema:** `migrations/0002_assets_and_replication.sql` is committed but **not applied to any live
+  database**. It reconciles the `assets` table (which TASK 12 created outside migration history) and
+  adds the replication outbox. Applying it needs the owner's authorization.
 - **Frontend:** static build (`bun run build` → `dist/`); hosting not configured yet.
 
 ## Secrets and environment

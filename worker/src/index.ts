@@ -2,6 +2,8 @@ import { Hono } from 'hono';
 import type { Env } from './env';
 import { authConfigured, setupAuth } from './auth';
 import assetApp from './assets';
+import projectsApp from './projects';
+import { corsHeadersFor, preflightHeadersFor } from './origins';
 
 
 /**
@@ -15,12 +17,40 @@ import assetApp from './assets';
 
 const app = new Hono<{ Bindings: Env }>();
 
+/**
+ * CORS for the second host (see worker/src/origins.ts).
+ *
+ * Only exact configured origins are echoed back, always with credentials and
+ * `Vary: Origin`; a wildcard is never emitted. Preflights from unlisted
+ * origins are rejected. Non-browser callers send no Origin and are unaffected
+ * here (their mutations are still gated by the route-level origin guard).
+ */
+app.use('*', async (c, next) => {
+  const origin = c.req.header('Origin');
+  if (origin) {
+    if (c.req.method === 'OPTIONS') {
+      const headers = preflightHeadersFor(origin, c.env);
+      if (!headers) {
+        return c.json({ error: 'forbidden', detail: 'Origin not allowed.' }, 403);
+      }
+      return new Response(null, { status: 204, headers });
+    }
+    const headers = corsHeadersFor(origin, c.env);
+    if (headers) {
+      for (const [name, value] of Object.entries(headers)) c.header(name, value);
+    }
+  } else {
+    c.header('Vary', 'Origin');
+  }
+  await next();
+});
+
 app.get('/', (c) =>
   c.json({
     service: 'manhwa-studio-api',
     status: 'ok',
     phase: 'TASK-07 D1 + tenancy foundation',
-    routes: ['/healthz', '/readyz', '/api/v1/me', '/api/v1/assets/*', '/auth/freebuff/*']
+    routes: ['/healthz', '/readyz', '/api/v1/me', '/api/v1/projects', '/api/v1/assets/*', '/auth/freebuff/*']
   })
 );
 
@@ -61,6 +91,11 @@ app.get('/readyz', async (c) => {
   const d1Ok = checks.d1.status === 'ok';
   return c.json({ status: d1Ok ? 'ready' : 'degraded', checks }, d1Ok ? 200 : 503);
 });
+
+/**
+ * Project routes: the shared, tenant-scoped workflow the frontend calls.
+ */
+app.route('/', projectsApp);
 
 /**
  * Asset routes (TASK 12): delegated to `worker/src/assets.ts`.
@@ -104,6 +139,8 @@ app.get('/api/v1/me', async (c) => {
   if (!user) return c.json({ error: 'unauthorized' }, 401);
   return c.json({ sub: user.sub, name: user.name ?? null });
 });
+
+export { app };
 
 type FetchHandler = (request: Request, env: Env) => Response | Promise<Response>;
 

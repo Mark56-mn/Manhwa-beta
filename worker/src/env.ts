@@ -63,10 +63,18 @@ export interface Env {
   APP_ORIGIN?: string;
 
   /**
-   * TEST-ONLY escape hatch. When set, asset routes use this user instead of
-   * calling setupAuth.getUser(). Never set in production — it exists so the
-   * TASK-12 asset tests can run against a mock user without a real Freebuff
-   * session. Production deployments never populate this field.
+   * Additional exact origins allowed to call this API cross-origin (the second
+   * host, e.g. a Vercel build). Comma-separated, public configuration only.
+   * APP_ORIGIN is always included. Never `*` — credentialed CORS requires a
+   * concrete origin. See worker/src/origins.ts.
    */
-  AUTH_USER_OVERRIDE?: { sub: string; name?: string | null };
+  ALLOWED_ORIGINS?: string;
+
+  /**
+   * Supabase backup target (secondary only — never the primary database).
+   * Server-side only; SUPABASE_SERVICE_ROLE_KEY is a secret and must never be
+   * exposed to the browser. When either is absent, backup is `not_configured`.
+   */
+  SUPABASE_URL?: string;
+  SUPABASE_SERVICE_ROLE_KEY?: string;
 }

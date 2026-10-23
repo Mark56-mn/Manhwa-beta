@@ -12,7 +12,9 @@ import { join } from 'node:path';
  * foreign keys, CHECK constraints, and cascade behavior.
  */
 
-const MIGRATION = readFileSync(join(import.meta.dir, '..', 'migrations', '0001_init_tenancy.sql'), 'utf8');
+const MIGRATIONS = ['0001_init_tenancy.sql', '0002_assets_and_replication.sql'].map((file) =>
+  readFileSync(join(import.meta.dir, '..', 'migrations', file), 'utf8')
+);
 
 let db: Database;
 
@@ -24,7 +26,7 @@ function rows<T>(sql: string): T[] {
 beforeAll(() => {
   db = new Database(':memory:');
   db.exec('PRAGMA foreign_keys = ON');
-  db.exec(MIGRATION);
+  for (const sql of MIGRATIONS) db.exec(sql);
 
   db.run("INSERT INTO organizations (id, name, slug) VALUES ('org-a', 'Org A', 'org-a')");
   db.run("INSERT INTO organizations (id, name, slug) VALUES ('org-b', 'Org B', 'org-b')");
@@ -48,10 +50,13 @@ describe('migration creates the expected schema', () => {
       .map((r) => r.name)
       .sort();
     expect(tables).toEqual([
+      'assets',
       'audit_events',
       'organization_memberships',
       'organizations',
       'projects',
+      'replication_outbox',
+      'replication_state',
       'users',
     ]);
   });
@@ -60,7 +65,15 @@ describe('migration creates the expected schema', () => {
     const indexes = rows<{ name: string }>("SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'")
       .map((r) => r.name)
       .sort();
-    expect(indexes).toEqual(['idx_audit_org_created', 'idx_memberships_org', 'idx_memberships_user', 'idx_projects_org']);
+    expect(indexes).toEqual([
+      'idx_assets_org',
+      'idx_assets_project',
+      'idx_audit_org_created',
+      'idx_memberships_org',
+      'idx_memberships_user',
+      'idx_outbox_pending',
+      'idx_projects_org',
+    ]);
   });
 });
 
@@ -130,6 +143,59 @@ describe('constraints are enforced', () => {
     expect(() =>
       db.run("INSERT INTO organization_memberships (id, organization_id, user_sub, role) VALUES ('m-dup', 'org-a', 'sub-a', 'member')")
     ).toThrow();
+  });
+});
+
+describe('assets and replication schema (migration 0002)', () => {
+  test('an asset is cascade-deleted with its project', () => {
+    db.run("INSERT INTO projects (id, organization_id, title) VALUES ('p-temp', 'org-a', 'Temp')");
+    db.run(
+      `INSERT INTO assets (id, organization_id, project_id, r2_key, filename, content_type, size)
+       VALUES ('asset-temp', 'org-a', 'p-temp', 'org/org-a/proj/p-temp/asset/asset-temp/a.png', 'a.png', 'image/png', 1)`
+    );
+    db.run("DELETE FROM projects WHERE id = 'p-temp'");
+    expect(db.query('SELECT COUNT(*) AS n FROM assets WHERE id = ?').get('asset-temp')).toEqual({ n: 0 });
+  });
+
+  test('the outbox idempotency key is unique per target', () => {
+    const insert = db.prepare(
+      `INSERT INTO replication_outbox
+         (id, target, entity_table, entity_id, organization_id, operation, payload, idempotency_key)
+       VALUES (?, 'supabase', 'projects', 'p-a', 'org-a', 'upsert', '{}', 'key-1')`
+    );
+    insert.run('outbox-1');
+    expect(() => insert.run('outbox-2')).toThrow();
+    expect(() =>
+      db.run(
+        `INSERT INTO replication_outbox
+           (id, target, entity_table, entity_id, organization_id, operation, payload, idempotency_key)
+         VALUES ('outbox-3', 'other', 'projects', 'p-a', 'org-a', 'upsert', '{}', 'key-1')`
+      )
+    ).not.toThrow();
+  });
+
+  test('the outbox rejects unknown entity tables and negative attempts', () => {
+    expect(() =>
+      db.run(
+        `INSERT INTO replication_outbox
+           (id, target, entity_table, entity_id, organization_id, operation, payload, idempotency_key)
+         VALUES ('o-bad', 'supabase', 'users', 'u-1', 'org-a', 'upsert', '{}', 'key-bad')`
+      )
+    ).toThrow();
+    expect(() =>
+      db.run(
+        `INSERT INTO replication_outbox
+           (id, target, entity_table, entity_id, organization_id, operation, payload, idempotency_key, attempts)
+         VALUES ('o-neg', 'supabase', 'projects', 'p-a', 'org-a', 'upsert', '{}', 'key-neg', -1)`
+      )
+    ).toThrow();
+  });
+
+  test('replication state starts empty and only records real markers', () => {
+    db.run("INSERT INTO replication_state (target) VALUES ('supabase')");
+    expect(
+      db.query("SELECT last_success_at, pending_count FROM replication_state WHERE target = 'supabase'").get()
+    ).toEqual({ last_success_at: null, pending_count: 0 });
   });
 });
 

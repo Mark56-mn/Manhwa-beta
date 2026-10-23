@@ -17,6 +17,12 @@ export default defineConfig(() => {
       hmr: process.env.DISABLE_HMR !== 'true',
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      // Development only: keep `/api` on this origin and forward it to the local
+      // Worker (`bunx wrangler dev --port 8787`), mirroring the same-origin
+      // production layout. Has no effect on `vite build` or production hosting.
+      proxy: {
+        '/api': { target: 'http://127.0.0.1:8787', changeOrigin: false },
+      },
     },
   };
 });

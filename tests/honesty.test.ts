@@ -57,14 +57,39 @@ describe('the fabricated sample video ID is contained', () => {
   });
 });
 
-describe('application source performs no network calls', () => {
-  const patterns = [/\bfetch\s*\(/, /XMLHttpRequest/, /navigator\.sendBeacon/, /new WebSocket\s*\(/];
-  for (const pattern of patterns) {
-    test(`no match for ${pattern.source}`, () => {
+/**
+ * The app now really talks to the shared API, so the old blanket "no network
+ * calls" rule is replaced by a narrower one: exactly ONE typed client module
+ * may perform network I/O, and it must never hardcode a deployment origin.
+ */
+describe('network access is confined to the typed API client', () => {
+  const API_CLIENT = 'src/lib/api.ts';
+
+  test(`only ${API_CLIENT} calls fetch()`, () => {
+    const hits = sources
+      .filter((s) => /\bfetch\s*\(/.test(s.text))
+      .map((s) => s.rel)
+      .sort();
+    expect(hits).toEqual([API_CLIENT]);
+  });
+
+  test('no other network primitive appears in application source', () => {
+    for (const pattern of [/XMLHttpRequest/, /navigator\.sendBeacon/, /new WebSocket\s*\(/]) {
       const hits = sources.filter((s) => pattern.test(s.text)).map((s) => s.rel);
       expect(hits).toEqual([]);
-    });
-  }
+    }
+  });
+
+  test('the API base URL is public configuration, never a hardcoded deployment', () => {
+    const client = sources.find((s) => s.rel === API_CLIENT);
+    if (!client) throw new Error(`expected file missing: ${API_CLIENT}`);
+    expect(client.text).toContain('VITE_API_BASE_URL');
+
+    const hardcoded = sources
+      .filter((s) => /https:\/\/(?:[a-z0-9-]+\.)*(?:freebuff\.page|vercel\.app|workers\.dev)/i.test(s.text))
+      .map((s) => s.rel);
+    expect(hardcoded).toEqual([]);
+  });
 });
 
 describe('required honest labels are present', () => {
@@ -75,6 +100,8 @@ describe('required honest labels are present', () => {
     ['(Demo)', 'src/components/StoryBibleEditor.tsx'],
     ['(Demo)', 'src/components/EpisodeScriptEditor.tsx'],
     ['not connected in this build', 'index.html'],
+    ['Server-backed', 'src/components/CloudWorkspacePanel.tsx'],
+    ['browser-local projects below', 'src/components/CloudWorkspacePanel.tsx'],
   ];
 
   for (const [phrase, rel] of required) {

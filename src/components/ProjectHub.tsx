@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Project } from '../types/manhwa';
+import { CloudWorkspacePanel } from './CloudWorkspacePanel';
 import { Plus, Search, BookOpen, Film, Calendar, Users, ArrowRight, Sparkles, Trash2 } from 'lucide-react';
 
 interface ProjectHubProps {
@@ -43,7 +44,7 @@ export function ProjectHub({
             Your Creative Universe
           </h1>
           <p className="text-sm text-slate-400 max-w-2xl">
-            Manage your webtoon series, build airtight story bibles, and draft episode scripts in browser-local storage. AI generation, video rendering, and publishing are not connected in this build.
+            Manage your webtoon series, build airtight story bibles, and draft episode scripts. The projects below are stored in this browser only; the shared workspace above is server-backed. AI generation, video rendering, and publishing are not connected in this build.
           </p>
         </div>
 
@@ -55,6 +56,9 @@ export function ProjectHub({
           <span>Create New Project</span>
         </button>
       </div>
+
+      {/* Server-backed workflow (authoritative API) */}
+      <CloudWorkspacePanel />
 
       {/* Search & Filter Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
