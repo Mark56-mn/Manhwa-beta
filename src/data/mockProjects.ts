@@ -120,9 +120,8 @@ export const INITIAL_PROJECTS: Project[] = [
         status: 'approved',
         approver: 'Studio Director',
         timestamp: '2026-10-15 14:30',
-        notes: 'Action pacing is excellent. Approved for storyboard asset rendering.',
-        youtubeUploadState: 'private_uploaded',
-        youtubeVideoId: 'dQw4w9WgXcQ'
+        notes: 'Demo sample record: this episode script is marked approved in the sample data. No rendered video, upload, or publication exists.',
+        youtubeUploadState: 'not_uploaded'
       }
     ]
   },
