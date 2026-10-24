@@ -45,7 +45,7 @@ the handoff.
 | Auth | Sign in with Freebuff (OIDC via `@freebuff/auth`) cookie session, `credentials: 'include'` | `worker/src/auth.ts`, `src/lib/api.ts` |
 | CORS | **Already implemented**: exact-origin allow-list (`APP_ORIGIN` + `ALLOWED_ORIGINS`), credentialed, wildcard impossible | `worker/src/origins.ts`, verified live below |
 | Owner's own Worker | **not deployed** | `docs/DEPLOYMENT.md` |
-| Live deployment that exists | Freebuff Sites production env, worker `site-ad1c922229fc492d966ca1d060a96319`, `published: true`, deployed 22 Oct 2026 | `sites_list`/`sites_inspect` |
+| Live deployment that exists | Freebuff Sites production env, worker `site-ad1c922229fc492d966ca1d060a96319`, `published: true`, deployed 22 Oct 2026 | `sites_list` (record only; not re-deployed or modified) |
 | Live reachability **today** | **503 on every path** (`/`, `/healthz`, `/readyz`, `/api/v1/me`) with `Site temporarily unavailable`; platform quota state `unavailable` — "Hosting usage is being checked. Sites will resume when monitoring is available." | 24 Oct 2026 probes + Sites record |
 
 So the backend origin is **known**, but it is **not currently reachable**. Its 503 is a
