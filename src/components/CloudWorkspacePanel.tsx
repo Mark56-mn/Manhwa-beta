@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { AlertTriangle, Cloud, Loader2, RefreshCw, Server, ShieldAlert } from 'lucide-react';
 import { api } from '../lib/api';
+import { isCrossOriginApi, resolveApiConfig } from '../lib/apiConfig';
 import {
   loadCloudWorkspace,
   saveCloudProject,
@@ -30,6 +31,17 @@ function formatTimestamp(value: string): string {
 }
 
 export function CloudWorkspacePanel() {
+  // Resolved at render time from public build-time configuration so a deploy
+  // can be verified by eye: an unset or invalid value is visible here.
+  const apiConfig = resolveApiConfig();
+  const apiLabel =
+    apiConfig.kind === 'configured'
+      ? apiConfig.baseUrl
+      : apiConfig.kind === 'invalid'
+        ? 'VITE_API_BASE_URL is invalid'
+        : 'same origin (VITE_API_BASE_URL unset)';
+  const crossOriginApi = apiConfig.kind === 'configured' && isCrossOriginApi(apiConfig.baseUrl);
+
   const [state, setState] = useState<CloudWorkspaceState>({ status: 'loading' });
   const [reloadKey, setReloadKey] = useState(0);
   const [title, setTitle] = useState('');
@@ -88,6 +100,9 @@ export function CloudWorkspacePanel() {
             <p className="text-xs text-slate-400">
               Projects stored on the authoritative API — separate from the browser-local projects below.
             </p>
+            <p className="text-[10px] font-mono text-slate-500 mt-0.5 break-all" title="Resolved from VITE_API_BASE_URL at build time (public)">
+              API: {apiLabel}
+            </p>
           </div>
         </div>
       </div>
@@ -115,6 +130,26 @@ export function CloudWorkspacePanel() {
             >
               Sign in with Freebuff
             </a>
+            {crossOriginApi && (
+              <p className="text-[10px] text-slate-500 sm:col-span-2">
+                Sign-in runs on the API origin ({apiConfig.kind === 'configured' ? apiConfig.baseUrl : ''}).
+                Its session cookie is host-only, so a browser on this origin only keeps the session when
+                both hosts share a parent domain; otherwise the API must be proxied from this origin.
+              </p>
+            )}
+          </div>
+        )}
+
+        {state.status === 'api_misconfigured' && (
+          <div className="flex items-start gap-2 text-xs text-amber-300" role="alert">
+            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+            <span>
+              {state.detail}
+              <span className="block mt-1 text-amber-200/70">
+                Cloud projects stay unavailable. Browser-local projects below still work and are not
+                affected.
+              </span>
+            </span>
           </div>
         )}
 

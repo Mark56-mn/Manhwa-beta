@@ -11,6 +11,7 @@ import { ApiError, type ApiClient, type CloudProject, type CreateProjectInput } 
 
 export type CloudWorkspaceState =
   | { status: 'loading' }
+  | { status: 'api_misconfigured'; detail: string }
   | { status: 'signed_out' }
   | { status: 'not_configured'; detail: string }
   | { status: 'forbidden'; detail: string }
@@ -26,6 +27,11 @@ function failureState(error: unknown): CloudWorkspaceState {
     switch (error.kind) {
       case 'unauthorized':
         return { status: 'signed_out' };
+      case 'api_not_configured':
+        // The build itself is misconfigured (no usable VITE_API_BASE_URL for
+        // this host). Never reported as "signed out" or "not configured by
+        // the server", because the cause and the fix are different.
+        return { status: 'api_misconfigured', detail: error.message };
       case 'not_configured':
         return {
           status: 'not_configured',
@@ -101,6 +107,8 @@ export async function saveCloudProject(
         ? state.message
         : state.status === 'signed_out'
           ? 'You are not signed in; nothing was saved.'
+          : state.status === 'api_misconfigured'
+            ? 'This build is not configured to reach the API; nothing was saved.'
           : state.status === 'not_configured'
             ? 'The server has no identity provider configured; nothing was saved.'
             : state.status === 'forbidden'

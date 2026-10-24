@@ -111,7 +111,10 @@ bun run build                   # output in dist/
 - **AI provider:** generation requires **both** `GEMINI_API_KEY` and an explicit `GEMINI_MODEL` as
   server-side Worker secrets. No model is invented and no paid fallback is used. The browser never
   calls the provider and never receives the key.
-- **Frontend:** static build (`bun run build` → `dist/`); hosting not configured yet.
+- **Frontend:** static build (`bun run build` → `dist/`). Vercel readiness is configured and
+  documented in [`docs/DEPLOYMENT-VERCEL.md`](docs/DEPLOYMENT-VERCEL.md) (`vercel.json`,
+  `VITE_API_BASE_URL`, Worker `ALLOWED_ORIGINS`, `scripts/verify-deployment.mjs`); **no deployment
+  has been performed and no Vercel project exists yet**.
 
 ## Secrets and environment
 

@@ -13,7 +13,15 @@
  *  - A success value is only returned after the server confirmed it.
  */
 
+import {
+  INVALID_API_BASE_URL_HINT,
+  MISSING_API_BASE_URL_HINT,
+  readApiBaseUrlRaw,
+  resolveApiConfig
+} from './apiConfig';
+
 export type ApiErrorKind =
+  | 'api_not_configured'
   | 'unauthorized'
   | 'forbidden'
   | 'not_found'
@@ -270,15 +278,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function readConfiguredBaseUrl(): string {
-  try {
-    const value = (import.meta as { env?: Record<string, unknown> }).env?.VITE_API_BASE_URL;
-    return typeof value === 'string' ? value.trim() : '';
-  } catch {
-    return '';
-  }
-}
-
 function errorKind(status: number, code: string | undefined): ApiErrorKind {
   if (status === 401) return 'unauthorized';
   if (status === 403) return 'forbidden';
@@ -402,7 +401,10 @@ function parseJob(value: unknown): JobResponse {
 }
 
 export function createApiClient(options: ApiClientOptions = {}): ApiClient {
-  const baseUrl = (options.baseUrl ?? readConfiguredBaseUrl()).replace(/\/+$/, '');
+  // Explicit resolution: an unusable VITE_API_BASE_URL is reported as a
+  // configuration fault, never silently downgraded to a same-origin guess.
+  const config = resolveApiConfig(options.baseUrl ?? readApiBaseUrlRaw());
+  const baseUrl = config.kind === 'configured' ? config.baseUrl : '';
   const fetchImpl: FetchLike = options.fetchImpl ?? ((input, init) => fetch(input, init));
   const defaultTimeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
@@ -410,6 +412,10 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
     path: string,
     init: { method?: string; body?: unknown; signal?: AbortSignal; timeoutMs?: number } = {}
   ): Promise<T> {
+    if (config.kind === 'invalid') {
+      throw new ApiError('api_not_configured', INVALID_API_BASE_URL_HINT);
+    }
+
     const method = init.method ?? 'GET';
     const timeoutMs = init.timeoutMs ?? defaultTimeoutMs;
     const externalSignal = init.signal;
@@ -439,6 +445,7 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
         signal: controller.signal
       });
 
+      const contentType = response.headers.get('content-type') ?? '';
       const text = await response.text();
       let parsed: unknown = null;
       if (text.length > 0) {
@@ -455,15 +462,30 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
         isRecord(parsed) && typeof parsed.detail === 'string' ? parsed.detail : undefined;
 
       if (!response.ok) {
+        // A non-JSON error body (a proxy/host outage page) is still the most
+        // informative thing available; surface a short excerpt instead of
+        // replacing it with a bare status code.
+        const plain = text.trim();
+        const fallbackMessage =
+          parsed === null && plain.length > 0 && plain.length <= 200
+            ? `The API request failed (HTTP ${response.status}): ${plain}`
+            : `The API request failed (HTTP ${response.status}).`;
         throw new ApiError(
           errorKind(response.status, code),
-          detail ?? `The API request failed (HTTP ${response.status}).`,
+          detail ?? fallbackMessage,
           { status: response.status, code, payload: parsed }
         );
       }
 
       if (response.status === 204) return undefined as T;
       if (parsed === null) {
+        // A successful HTML answer means the request reached a web host, not the
+        // API: on a static host the SPA fallback serves index.html for /api/*.
+        if (contentType.includes('text/html') && baseUrl === '') {
+          throw new ApiError('api_not_configured', MISSING_API_BASE_URL_HINT, {
+            status: response.status
+          });
+        }
         throw new ApiError('invalid_response', 'The API returned a non-JSON response.', {
           status: response.status
         });
@@ -481,7 +503,13 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
           { cause: error }
         );
       }
-      throw new ApiError('network', 'Could not reach the API server.', { cause: error });
+      throw new ApiError(
+        'network',
+        baseUrl === ''
+          ? `Could not reach the API on this origin. ${MISSING_API_BASE_URL_HINT}`
+          : 'Could not reach the API server.',
+        { cause: error }
+      );
     } finally {
       clearTimeout(timer);
       externalSignal?.removeEventListener('abort', forwardAbort);
