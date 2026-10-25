@@ -70,6 +70,17 @@ TASK 05/06/07 documents are the authoritative ones.
 
 No branch was deleted or rewritten, and no force-push was used.
 
+## Remote refs
+
+`main` was fast-forwarded `49ed52c..4993643`; no force-push, no merge into
+production, no deploy.
+
+The consolidation branch `integration/task-05-to-main` and the pushed
+`task/TASK-05-END-TO-END-READINESS` ref both point at that same consolidated
+tip. The TASK 05 commit itself is `a8b65bf` and stays reachable through it; the
+branch was pushed after the consolidation, so its remote ref includes the merge
+commits rather than stopping at the task commit.
+
 ## Gates on the merged tree
 
 | Gate | Command | Result |
