@@ -29,7 +29,7 @@
 |---|---|
 | Branch | `task/TASK-06-BACKEND-READINESS` |
 | Base | `main` `d0eba90` |
-| Task commit | see the tip of the branch (`git log -1`) |
+| Task commit | `1eed78d` — "Make a disconnected deployment say why, and prove it with tests" (the tip also carries a follow-up commit that records this SHA) |
 | Files changed | `src/lib/cloudWorkspace.ts`, `src/components/CloudWorkspacePanel.tsx`, `scripts/verify-deployment.mjs`, `tests/cloud-workspace.test.ts`, `tests/readiness.test.ts` (new), `tests/deployment-verifier.test.ts` (new), `docs/DEPLOYMENT.md`, `docs/DEPLOYMENT-VERCEL.md`, `tasks/TASK-06-BACKEND-READINESS.md` (new), the report, this handoff |
 | `package.json` / `bun.lock` | unchanged |
 
