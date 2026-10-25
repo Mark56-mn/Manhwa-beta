@@ -127,13 +127,33 @@ It performs **GET/OPTIONS only** — never a mutation — and checks:
 |---|---|---|
 | 1 | `GET /healthz` | 200 `{"status":"ok"}` |
 | 2 | `GET /readyz` | 200 `status: ready`, per-dependency detail printed |
-| 3 | `GET /api/v1/me` with `Origin` | **401** + `Access-Control-Allow-Origin: <exact origin>` + `Allow-Credentials: true` |
+| 3 | `GET /api/v1/me` with `Origin` | **401**, or an honest 503 `auth_not_configured`, + `Access-Control-Allow-Origin: <exact origin>` + `Allow-Credentials: true` |
 | 4 | `OPTIONS /api/v1/projects` | 204 + allowed methods + credentials |
 | 5 | Preflight from an unlisted origin | no `Access-Control-Allow-Origin` (never `*`) |
-| 6 | Frontend `/` | 200 `text/html` containing `id="root"` |
-| 7 | Frontend deep link | 200 `text/html` (SPA fallback, not a host 404) |
+| 6 | `GET /api/v1/projects` with `Origin` (TASK 06) | 401 / 503 `auth_not_configured` **and** the exact `Allow-Origin` — a `404` means the deployment is older than the projects API |
+| 7 | Frontend `/` | 200 `text/html` containing `id="root"` |
+| 8 | Frontend deep link | 200 `text/html` (SPA fallback, not a host 404) |
+| 9 | Deployed bundle (TASK 06) | when the hosts differ, the API origin appears in the JavaScript the page loads — absent means the build ran without `VITE_API_BASE_URL` |
 
-Exit code 0 means every check passed; 1 lists the failures; 2 means bad arguments.
+Exit code 0 means every check passed; 1 lists the failures; 2 means bad arguments. The script
+prints the answering service and build phase, so a deployment that is older than the repository is
+visible before the checks run.
+
+### 5.1 Result of the last run against the live pair (25 October 2026)
+
+`5/9` — exit 1. Liveness, readiness, the foreign-origin refusal and both SPA checks pass; the four
+failures name the two root causes exactly:
+
+```
+[FAIL] Credentialed CORS read (/api/v1/me)                 allow-origin=absent
+[FAIL] Credentialed preflight (OPTIONS /api/v1/projects)   404
+[FAIL] API serves the shared routes (/api/v1/projects)     404 — redeploy the current Worker
+[FAIL] Frontend build targets the API origin               absent from 1 deployed bundle
+```
+
+The frontend deployment is live and healthy; it is simply built without `VITE_API_BASE_URL`. The API
+deployment is a 22 October build that predates the CORS layer and the projects API. Neither is a
+code defect in this repository. See `docs/audits/TASK-06-BACKEND-READINESS-REPORT.md` §3.
 
 Browser check still required by a human: open the deployment, confirm the shared-workspace
 panel shows the expected `API:` origin, sign in, create one cloud project, reload, and confirm
@@ -197,12 +217,13 @@ Option 3 is what a Vercel deployment of this branch does today unless (1) or (2)
    credentials, so which branch/commit a Vercel project deploys, and its origin(s), remain
    **unknown**. Everything that depends on the concrete Vercel origin is therefore a documented
    placeholder, never an invented value.
-2. **The only known live API was unreachable during verification** (24 Oct 2026):
-   `GET https://site-ad1c922229fc492d966ca1d060a96319.freebuff.page/{healthz,readyz,api/v1/me}`
-   returned `503 Site temporarily unavailable` for all paths. The Freebuff Sites record shows the
-   environment still `published` and hosting usage monitoring unavailable ("Hosting usage is being
-   checked. Sites will resume when monitoring is available."), i.e. a platform-side pause, not an
-   application error. Connectivity and CORS against a live origin are therefore **blocked, not
-   passed**.
+2. **The known live API is reachable again but is a stale build** (verified 25 Oct 2026).
+   `https://site-ad1c922229fc492d966ca1d060a96319.freebuff.page` answers `200` on `/`, `/healthz`
+   and `/readyz` (`ready`), and `401` on `/api/v1/me` — but it sends **no CORS headers** and answers
+   `404` for `/api/v1/projects` and `/api/v1/credits`. Its `/readyz` shape (no `origins` check) and
+   `phase` string show it was deployed on 22 Oct, before `worker/src/origins.ts` and the projects API.
+   The earlier `503 Site temporarily unavailable` pause is over (hosting quota state `active`).
+   Connectivity is therefore **still not usable**, for a different reason: the deployment, not the
+   host.
 3. **No GitHub write access from this environment** (`gh auth status`: not logged in; no
    `GITHUB_TOKEN`), so the branch could not be pushed with a PR reference from here.

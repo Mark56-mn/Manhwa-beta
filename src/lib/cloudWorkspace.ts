@@ -15,6 +15,8 @@ export type CloudWorkspaceState =
   | { status: 'signed_out' }
   | { status: 'not_configured'; detail: string }
   | { status: 'forbidden'; detail: string }
+  /** The API origin did not answer at all (down, blocked, offline, timed out). */
+  | { status: 'unavailable'; detail: string }
   | { status: 'error'; message: string; retryable: boolean }
   | { status: 'ready'; projects: CloudProject[] };
 
@@ -43,6 +45,11 @@ function failureState(error: unknown): CloudWorkspaceState {
           status: 'forbidden',
           detail: error.message || 'Your account is not a member of an organization.'
         };
+      case 'network':
+      case 'timeout':
+        // Distinct from a server that answered with an error: nothing came
+        // back, so the deployment or the network is the problem, not the data.
+        return { status: 'unavailable', detail: error.message };
       case 'aborted':
         return { status: 'error', message: 'The request was cancelled.', retryable: true };
       case 'bad_request':
@@ -102,18 +109,25 @@ export async function saveCloudProject(
     };
   } catch (error) {
     const state = failureState(error);
-    const message =
-      state.status === 'error'
-        ? state.message
-        : state.status === 'signed_out'
-          ? 'You are not signed in; nothing was saved.'
-          : state.status === 'api_misconfigured'
-            ? 'This build is not configured to reach the API; nothing was saved.'
-          : state.status === 'not_configured'
-            ? 'The server has no identity provider configured; nothing was saved.'
-            : state.status === 'forbidden'
-              ? 'You are not allowed to create projects here; nothing was saved.'
-              : 'Nothing was saved.';
-    return { ok: false, state, message };
+    return { ok: false, state, message: saveFailureMessage(state) };
+  }
+}
+
+function saveFailureMessage(state: CloudWorkspaceState): string {
+  switch (state.status) {
+    case 'error':
+      return state.message;
+    case 'signed_out':
+      return 'You are not signed in; nothing was saved.';
+    case 'api_misconfigured':
+      return 'This build is not configured to reach the API; nothing was saved.';
+    case 'unavailable':
+      return 'The API did not answer; nothing was saved.';
+    case 'not_configured':
+      return 'The server has no identity provider configured; nothing was saved.';
+    case 'forbidden':
+      return 'You are not allowed to create projects here; nothing was saved.';
+    default:
+      return 'Nothing was saved.';
   }
 }

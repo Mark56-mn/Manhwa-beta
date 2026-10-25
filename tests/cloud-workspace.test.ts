@@ -101,7 +101,7 @@ describe('loadCloudWorkspace', () => {
     if (state.status === 'error') expect(state.retryable).toBe(true);
   });
 
-  it('maps a network failure to a retryable error', async () => {
+  it('maps an unreachable API to an explicit unavailable state, not a generic error', async () => {
     const state = await loadCloudWorkspace(
       loadClient({
         getSession: async () => {
@@ -109,8 +109,30 @@ describe('loadCloudWorkspace', () => {
         }
       })
     );
+    expect(state).toEqual({ status: 'unavailable', detail: 'Could not reach the API server.' });
+  });
+
+  it('maps a timeout to the same unavailable state and keeps the measured limit', async () => {
+    const state = await loadCloudWorkspace(
+      loadClient({
+        listProjects: async () => {
+          throw new ApiError('timeout', 'The API did not respond within 10000 ms.');
+        }
+      })
+    );
+    expect(state.status).toBe('unavailable');
+    if (state.status === 'unavailable') expect(state.detail).toContain('10000 ms');
+  });
+
+  it('a server that answered with an error stays an error, not unavailable', async () => {
+    const state = await loadCloudWorkspace(
+      loadClient({
+        listProjects: async () => {
+          throw new ApiError('server', 'The API request failed (HTTP 500).', { status: 500 });
+        }
+      })
+    );
     expect(state.status).toBe('error');
-    if (state.status === 'error') expect(state.retryable).toBe(true);
   });
 
   it('maps invalid responses to a non-retryable error', async () => {
@@ -226,7 +248,7 @@ describe('saveCloudProject', () => {
     }
   });
 
-  it('reports a network failure as retryable and unsaved', async () => {
+  it('reports an unreachable API honestly and produces no project', async () => {
     const result = await saveCloudProject(
       createClient({
         createProject: async () => {
@@ -237,9 +259,8 @@ describe('saveCloudProject', () => {
     );
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.state.status).toBe('error');
-      if (result.state.status === 'error') expect(result.state.retryable).toBe(true);
-      expect(result.message).toContain('Could not reach');
+      expect(result.state.status).toBe('unavailable');
+      expect(result.message).toBe('The API did not answer; nothing was saved.');
     }
   });
 

@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { AlertTriangle, Cloud, Loader2, RefreshCw, Server, ShieldAlert } from 'lucide-react';
+import {
+  AlertTriangle,
+  Cloud,
+  Loader2,
+  RefreshCw,
+  Server,
+  ShieldAlert,
+  WifiOff
+} from 'lucide-react';
 import { api } from '../lib/api';
 import { isCrossOriginApi, resolveApiConfig } from '../lib/apiConfig';
 import {
@@ -111,7 +119,7 @@ export function CloudWorkspacePanel() {
         {state.status === 'loading' && (
           <p role="status" className="flex items-center gap-2 text-xs text-slate-400">
             <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
-            Checking the shared API…
+            Connecting to the shared API…
           </p>
         )}
 
@@ -164,6 +172,30 @@ export function CloudWorkspacePanel() {
           <div className="flex items-start gap-2 text-xs text-amber-300" role="status">
             <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0" />
             <span>{state.detail}</span>
+          </div>
+        )}
+
+        {state.status === 'unavailable' && (
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3" role="alert">
+            <p className="flex items-start gap-2 text-xs text-amber-300">
+              <WifiOff className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>
+                <span className="font-semibold">Backend unavailable.</span> {state.detail}
+                <span className="block mt-1 text-amber-200/70">
+                  Nothing was loaded from the server. An undeployed or sleeping API, a blocked
+                  cross-origin request, or an API origin that is not in the Worker&apos;s allow-list all
+                  look like this. Browser-local projects below are unaffected.
+                </span>
+              </span>
+            </p>
+            <button
+              type="button"
+              onClick={() => setReloadKey((key) => key + 1)}
+              className="px-3 py-1.5 text-xs font-semibold text-slate-200 bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors inline-flex items-center gap-1.5 shrink-0"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Retry
+            </button>
           </div>
         )}
 

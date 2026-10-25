@@ -14,6 +14,10 @@ writing credits — calls the **Cloudflare Worker API (Hono)** through a single 
 > has **not been deployed** and `migrations/0003_story_generation.sql` has **not been applied** to any
 > database; the only live Worker ever probed is the owner's Freebuff-hosted site (22 Oct 2026, see
 > [`docs/audits/FREEBUFF_DATABASE_ACCESS_PROBE.md`](docs/audits/FREEBUFF_DATABASE_ACCESS_PROBE.md)).
+> A Vercel deployment of the frontend **is** live, but it was built without an API origin and the live
+> Worker predates the CORS layer and the projects API, so the shared workspace is disconnected there
+> by observation, not by inference — see
+> [`docs/audits/TASK-06-BACKEND-READINESS-REPORT.md`](docs/audits/TASK-06-BACKEND-READINESS-REPORT.md).
 > Every capability is classified by verification level in
 > [`docs/audits/TASK-03-CAPABILITY-INVENTORY.md`](docs/audits/TASK-03-CAPABILITY-INVENTORY.md)
 > (see its 22 October 2026 reconciliation section).
@@ -96,8 +100,10 @@ bun run build                   # output in dist/
 
 - **API worker:** `wrangler.toml` + `worker/src/` define the Hono API (blueprint TASK 06 foundation).
   Verified locally with `bunx wrangler dev --port 8787` (`/healthz` → 200, `/readyz` reports real
-  binding status). **No deployment has been performed** — see `docs/DEPLOYMENT.md` for the documented
-  (unexecuted) deploy and rollback procedures.
+  binding status). The owner's own `manhwa-studio-api` Worker has **not** been deployed; one older
+  build is live on a Freebuff-hosted site and does not serve the current routes. See
+  `docs/DEPLOYMENT.md` for the observed live state and the (unexecuted) deploy and rollback
+  procedures.
 - **Bindings:** `DB` (D1) and `FILES` (R2) are wired in `wrangler.toml` and exercised by
   `tests/tenancy.test.ts` / `tests/projects.test.ts` / `tests/asset.test.ts` against real SQLite and
   in-memory R2. Per `docs/DEPLOYMENT.md` the D1 database and R2 bucket were provisioned on the owner's
@@ -111,10 +117,13 @@ bun run build                   # output in dist/
 - **AI provider:** generation requires **both** `GEMINI_API_KEY` and an explicit `GEMINI_MODEL` as
   server-side Worker secrets. No model is invented and no paid fallback is used. The browser never
   calls the provider and never receives the key.
-- **Frontend:** static build (`bun run build` → `dist/`). Vercel readiness is configured and
-  documented in [`docs/DEPLOYMENT-VERCEL.md`](docs/DEPLOYMENT-VERCEL.md) (`vercel.json`,
-  `VITE_API_BASE_URL`, Worker `ALLOWED_ORIGINS`, `scripts/verify-deployment.mjs`); **no deployment
-  has been performed and no Vercel project exists yet**.
+- **Frontend:** static build (`bun run build` → `dist/`). A Vercel deployment is **live** at
+  `https://manhwa-beta-frontend.vercel.app`; it serves the app and its SPA fallback, but it was built
+  **without `VITE_API_BASE_URL`**, so the browser calls `/api/*` on the static host and the workspace
+  reports the misconfiguration instead of inventing data. Configuration and verification are documented
+  in [`docs/DEPLOYMENT-VERCEL.md`](docs/DEPLOYMENT-VERCEL.md) (`vercel.json`, `VITE_API_BASE_URL`,
+  Worker `ALLOWED_ORIGINS`, `scripts/verify-deployment.mjs`); the last live run of that script passed
+  5 of 9 checks (TASK 06, 25 Oct 2026).
 
 ## Secrets and environment
 

@@ -1,11 +1,12 @@
 # Deployment & Rollback — Manhwa Studio API Worker
 
-**Status (19 October 2026; reconciled 22 October 2026 under ROADMAP TASK 02): D1 and R2 provisioned per
-the reports below; the Worker itself is NOT deployed.** The backend schema reportedly exists on the
-owner's Cloudflare account; no Worker script, DNS, or zone change has been made. Everything in the
-"CREATED / live" column comes from the task reports and local `wrangler dev` probes — **it has not been
-independently verified from this repository** in ROADMAP TASK 01 or 02, neither of which deployed or
-migrated anything.
+**Status (19 October 2026; reconciled 22 October 2026 under ROADMAP TASK 02; live state re-verified
+25 October 2026 under TASK 06): D1 and R2 are provisioned per the reports below; the owner's own
+`manhwa-studio-api` Worker is still NOT deployed.** One Worker *is* serving traffic — an older build on
+the Freebuff Sites production environment (see "Live deployment observed on 25 October 2026" below) —
+but it predates the CORS layer and the projects/story routes, so it cannot serve the current frontend.
+Everything in the "CREATED / live" column comes from the task reports and local `wrangler dev` probes;
+no Worker script, DNS or zone change has been made by any task in this repository.
 
 ## What exists today
 
@@ -16,7 +17,29 @@ migrated anything.
 | D1 database `manhwa-studio` | **REPORTED CREATED** (id `d9557398-b439-463a-b5aa-a3703d5c3fdb`, region WNAM) by TASK 07; `migrations/0001_init_tenancy.sql` applied locally and, per that report, remotely. Not re-verified by TASK 01/02. |
 | R2 bucket `manhwa-studio-assets` | **REPORTED live** (created + verified 19 Oct 2026, WNAM, Standard) by TASK 12. Worker binding `FILES` wired in `wrangler.toml`. Health check (`/readyz`) reports `r2: ok` in workerd. Asset routes are **implemented** in `worker/src/assets.ts` (list/read/HEAD/upload/delete, org-scoped, 10 MiB cap, content-type allow-list) and covered by `tests/asset.test.ts` — they are unverified against the live bucket because no Worker is deployed. |
 | Sign in with Freebuff (OIDC) | SDK installed and mounted, but **no client registered** — registration requires the owner's Freebuff login; routes answer `auth_not_configured` (503) |
-| Worker deployment | **none** |
+| Worker deployment | the owner's `manhwa-studio-api` Worker: **none**. A Freebuff Sites production deployment of a **22 October build** is live — see the section below |
+
+## Live deployment observed on 25 October 2026 (TASK 06, read-only)
+
+`https://site-ad1c922229fc492d966ca1d060a96319.freebuff.page` — Freebuff Sites, site `Manhwa-beta`,
+production environment, `published: true`, `deployed_at 2026-10-22T11:25:44Z`.
+
+| Probe | Observed |
+|---|---|
+| `GET /` | 200, `{"service":"manhwa-studio-api","phase":"TASK-07 D1 + tenancy foundation"}` |
+| `GET /healthz` | 200 `{"status":"ok"}` |
+| `GET /readyz` | 200 `ready` — `d1: ok`, `r2: ok`, `auth: ok` (no `origins` check; R2 detail names the bucket) |
+| `GET /api/v1/me` with `Origin` | 401 `{"error":"unauthorized"}` and **no** `Access-Control-Allow-Origin` |
+| `GET /api/v1/projects`, `GET /api/v1/credits`, `OPTIONS /api/v1/projects` | **404** |
+
+**What this means:** the deployment is alive but is not this repository's Worker. `/healthz` and
+`/readyz` are therefore not proof of a usable backend. It cannot be upgraded from here: only the
+platform owner can redeploy that environment, and its D1 database is the platform-provided one, not
+the `manhwa-studio` database in `wrangler.toml`. The supported path is to deploy the owner's Worker
+with the current `worker/` build and the public configuration below, then run
+`scripts/verify-deployment.mjs` (see `docs/DEPLOYMENT-VERCEL.md` §5).
+
+The additive migrations `0002` and `0003` remain **unapplied to any live database**.
 
 ## Prerequisites
 
@@ -30,8 +53,14 @@ migrated anything.
 # 1. Load the token into the environment WITHOUT printing it:
 export CLOUDFLARE_API_TOKEN=$(grep '^CLOUDFLARE_API_TOKEN=' .env.local | cut -d= -f2-)
 
-# 2. Deploy the worker (reads wrangler.toml):
-bunx wrangler deploy
+# 2. Deploy the worker (reads wrangler.toml) with its public configuration.
+#    Without APP_ORIGIN/ALLOWED_ORIGINS a separately hosted frontend receives no
+#    CORS headers and every cross-origin call fails in the browser.
+#    Apply the additive migrations to the target D1 first when authorized:
+#      bunx wrangler d1 migrations apply manhwa-studio --remote
+bunx wrangler deploy \
+  --var APP_ORIGIN:https://<api-origin> \
+  --var ALLOWED_ORIGINS:https://manhwa-beta-frontend.vercel.app
 
 # 3. Verify the deployed endpoints (replace with the URL wrangler prints):
 curl -s https://manhwa-studio-api.<account-subdomain>.workers.dev/healthz   # expect {"status":"ok"}
