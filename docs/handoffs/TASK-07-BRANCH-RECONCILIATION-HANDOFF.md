@@ -25,7 +25,7 @@
 |---|---|
 | Branch | `task/TASK-07-BRANCH-RECONCILIATION` |
 | Base | `main` `d0eba90` |
-| Task commit | see the branch tip (`git log -3`); it is the commit whose message starts "Reconcile TASK-01's UI tests…" |
+| Task commit | `3ad7d2f` — "Reconcile TASK-01's UI tests and honesty fixes onto main" (the tip also carries a follow-up commit recording this SHA) |
 | Incorporated | `main` (which already contains TASK-05 `a8b65bf`/`4993643`, VERCEL `f0d3503`, TASK-03, TASK-04, TASK-IMPLEMENT-SHARED-FOUNDATION) + selected work from `task/TASK-01-corrective-review` `0ed6b08` |
 | Not incorporated | TASK-01's `bunfig.toml` preload, its stale duplicates (storage, App wiring, modal copy), its superseded docs |
 | Files changed | `package.json`, `bun.lock`, `index.html`, `metadata.json`, `src/data/mockProjects.ts`, `tests/setup/dom.ts` (new), `tests/task01-honesty.test.ts` (new), `tests/task01-render.test.tsx` (new), `tests/task01-interaction.test.tsx` (new), `tests/task01-forms.test.tsx` (new), task file, report, this handoff |
