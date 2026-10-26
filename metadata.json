@@ -1,6 +1,6 @@
 {
   "name": "Manhwa Studio",
-  "description": "AI-powered webtoon production studio for story bibles, episode scripts, character continuity boards, and secure YouTube publishing.",
+  "description": "Webtoon story and script studio: story bibles, episode scripts, character continuity, and approval records. AI generation, video rendering, and YouTube publishing are not connected.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": []
 }
