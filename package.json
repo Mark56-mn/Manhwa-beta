@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
+    "migrations:check": "node scripts/check-migrations.mjs",
     "test": "bun test --isolate"
   },
   "dependencies": {

@@ -38,7 +38,7 @@ exit codes shown (the 27 Oct re-run is the current count).
 |---|---|---|
 | Install dependencies | `bun install --frozen-lockfile` | 0 |
 | Typecheck | `bun run lint` (runs `tsc --noEmit`) | 0 |
-| Tests | `bun run test` (bun test, **317 tests / 22 files**, 1068 assertions) | 0 |
+| Tests | `bun run test` (bun test --isolate, **349 tests / 24 files**, 1185 assertions) | 0 |
 | Production build | `bun run build` (Vite) | 0 |
 | Dev server | `bun run dev` (serves `0.0.0.0:3000`) | 0 (HTTP 200 verified) |
 
@@ -55,7 +55,7 @@ bun run build                   # output in dist/
 
 ## Testing and CI
 
-- **Tests:** `bun run test` runs **317 tests across 22 files** (verified 27 October 2026):
+- **Tests:** `bun run test` runs **349 tests across 24 files** (verified 27 October 2026):
   - `tests/task01-*.test.ts(x)` — the TASK-01 interaction, render and form suites, driven through a
     scoped DOM harness (`tests/setup/dom.ts`): editor field state and validation, project creation and
     deletion consistency, and empty/boundary inputs. The harness is registered per DOM test file rather
@@ -76,6 +76,14 @@ bun run build                   # output in dist/
   - `tests/projects.test.ts` — the shared projects API against real SQLite: 401/503/403 gates, Tenant A
     cannot read/modify/delete Tenant B's projects or assets, creation is scoped to the session tenant,
     browser-supplied identity headers are ignored, and the origin guard.
+  - `tests/provisioning.test.ts` — first-use organization provisioning (TASK 09): exactly one `owner`
+    membership per verified subject, idempotent repeats, eight racing first sign-ins leaving no
+    duplicate, a competitor's row reused instead of duplicated, an existing membership winning over a
+    personal workspace, a malformed subject refused with no tenant created, and cross-tenant isolation
+    through the real routes.
+  - `tests/migration-safety.test.ts` — the tracked migration chain executed against a disposable SQLite
+    database in the exact shape of production (0001 applied, `assets` already present): applies cleanly,
+    re-runs safely, deletes nothing; plus the preflight checker's verdicts on a synthetic duplicate.
   - `tests/origins.test.ts` — exact-origin parsing, credentialed preflight, and the guarantee that a
     wildcard origin is never emitted.
   - `tests/api-client.test.ts` — the typed client: 401/403/503 mapping, network/timeout/cancellation,
@@ -95,6 +103,10 @@ bun run build                   # output in dist/
     URL), bounded output, auth/rate-limit/5xx/malformed/network/timeout mapping, and no key in errors.
   - `tests/story-workspace.test.ts` — frontend Story Studio states: no fabricated success without saved
     output, provider/credit/sign-in failures, key reuse only for uncertain requests, editing and approval.
+- **Migration preflight:** `bun run migrations:check` (or `node scripts/check-migrations.mjs`) statically
+  rejects a chain that cannot be applied — non-idempotent DDL, `DROP`/`ALTER`/`DELETE`, duplicate
+  prefixes, empty files. It exits **1 today** because the untracked `migrations/0002_assets.sql` is a
+  genuine blocker; that is the check working, not a broken build. Run it before any remote apply.
   - `tests/story-security.test.ts` — static guards that the provider key, model and host never reach
     browser code, are not logged or persisted, and that plan/balance/cost cannot come from a body.
   - `tests/replication.test.ts` — outbox idempotency, retries with backoff, duplicate targets, and the

@@ -16,7 +16,7 @@ import { Hono } from 'hono';
 import type { Env } from './env';
 import { authConfigured } from './auth';
 import { resolveFreebuffUser, type AuthenticatedUser, type UserResolver } from './identity';
-import { firstOrganizationForUser } from './tenancy';
+import { resolveOrganizationForUser } from './provisioning';
 import { isAllowedMutationOrigin } from './origins';
 
 const ASSET_CONTENT_TYPE_ALLOWLIST = new Set([
@@ -127,7 +127,7 @@ app.get('/api/v1/assets', async (c) => {
 
   const user = await getUser(c);
   if (!user) return c.json({ error: 'unauthorized' }, 401);
-  const orgId = await firstOrganizationForUser(c.env, user.sub);
+  const orgId = await resolveOrganizationForUser(c.env, user);
   if (!orgId) return c.json({ error: 'forbidden', detail: 'Not a member of any organization.' }, 403);
 
   const assets = (await assetsByOrganization(c.env, orgId)).map((a) => ({ ...a, etag: a.etag ?? null }));
@@ -149,7 +149,7 @@ app.get('/api/v1/assets/:id', async (c) => {
 
   const user = await getUser(c);
   if (!user) return c.json({ error: 'unauthorized' }, 401);
-  const orgId = await firstOrganizationForUser(c.env, user.sub);
+  const orgId = await resolveOrganizationForUser(c.env, user);
   if (!orgId) return c.json({ error: 'forbidden', detail: 'Not a member of any organization.' }, 403);
 
   const asset = await assetById(c.env, c.req.param('id'));
@@ -186,7 +186,7 @@ app.on('HEAD', '/api/v1/assets/:id', async (c) => {
 
   const user = await getUser(c);
   if (!user) return c.json({ error: 'unauthorized' }, 401);
-  const orgId = await firstOrganizationForUser(c.env, user.sub);
+  const orgId = await resolveOrganizationForUser(c.env, user);
   if (!orgId) return c.json({ error: 'forbidden', detail: 'Not a member of any organization.' }, 403);
 
   const asset = await assetById(c.env, c.req.param('id'));
@@ -229,7 +229,7 @@ app.put('/api/v1/assets', async (c) => {
 
   const user = await getUser(c);
   if (!user) return c.json({ error: 'unauthorized' }, 401);
-  const orgId = await firstOrganizationForUser(c.env, user.sub);
+  const orgId = await resolveOrganizationForUser(c.env, user);
   if (!orgId) return c.json({ error: 'forbidden', detail: 'Not a member of any organization.' }, 403);
 
   // Project must be supplied and belong to the caller's org.
@@ -314,7 +314,7 @@ app.delete('/api/v1/assets/:id', async (c) => {
 
   const user = await getUser(c);
   if (!user) return c.json({ error: 'unauthorized' }, 401);
-  const orgId = await firstOrganizationForUser(c.env, user.sub);
+  const orgId = await resolveOrganizationForUser(c.env, user);
   if (!orgId) return c.json({ error: 'forbidden', detail: 'Not a member of any organization.' }, 403);
 
   const asset = await assetById(c.env, c.req.param('id'));

@@ -131,14 +131,20 @@ describe('projects API — authentication gate', () => {
     expect((await res.json()).error).toBe('not_configured');
   });
 
-  it('returns 403 when the user belongs to no organization', async () => {
+  // TASK 09 changed this contract deliberately: a verified user with no
+  // membership is now provisioned into exactly one workspace instead of being
+  // refused forever (see tests/provisioning.test.ts). The 403 branch therefore
+  // now covers only a subject the provisioning policy rejects — a
+  // non-canonical one, which the identity layer should never produce but the
+  // route wiring must still refuse rather than invent a tenant for.
+  it('returns 403 for an ineligible subject and creates no organization', async () => {
     const env = makeEnv();
-    env.DB!.prepare(
-      "INSERT INTO users (id) VALUES ('sub-orphan')"
-    ).run();
-    const res = await call(projectsAs(user('sub-orphan')), '/api/v1/projects', {}, env);
+    const res = await call(projectsAs({ sub: ' sub-orphan ' }), '/api/v1/projects', {}, env);
     expect(res.status).toBe(403);
     expect((await res.json()).error).toBe('forbidden');
+    // The per-test seed creates exactly two organizations; refused requests
+    // must not add a third.
+    expect(db.query('SELECT COUNT(*) AS n FROM organizations').get()).toEqual({ n: 2 });
   });
 
   it('ignores browser-supplied identity headers', async () => {

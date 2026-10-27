@@ -33,6 +33,15 @@ owner's **Freebuff-hosted site**, which runs a **~40-commit stale** revision of 
 mv migrations/0002_assets.sql /tmp/0002_assets.sql.stray   # reversible; or: rm migrations/0002_assets.sql
 ```
 
+Verify the chain statically first — this touches no database, remote or local:
+
+```bash
+bun run migrations:check        # exit 0 = safe to apply; exit 1 = a blocker, printed with remediation
+```
+
+It exits **1 today**, and that is the check working: the stray file below is a real blocker. Never apply a
+chain the preflight rejects.
+
 `migrations/0002_assets.sql` is an **untracked duplicate** of the tracked
 `0002_assets_and_replication.sql`. It contains a bare `CREATE TABLE assets` while the live database
 already has an `assets` table, it sorts first, and wrangler **aborts at the first failure** — leaving
@@ -51,6 +60,7 @@ export PATH="$HOME/.bun/bin:$PATH"
 export CLOUDFLARE_API_TOKEN=$(grep '^CLOUDFLARE_API_TOKEN=' .env.local | cut -d= -f2-)
 
 # 2. Group 1 — read-only verification (safe):
+bun run migrations:check                                    # must exit 0 before Group 4
 bunx wrangler whoami
 bunx wrangler d1 migrations list manhwa-studio --remote     # expect 3 pending, incl. the stray 0002
 bunx wrangler d1 time-travel info manhwa-studio             # restore point (verified available 27 Oct 2026)
@@ -100,6 +110,14 @@ attach a custom domain. `oppa-technologies.online` is active on this account, so
 - **Secrets** — `bunx wrangler secret put <NAME>`. Generation requires **both** `GEMINI_API_KEY` and an
   explicit `GEMINI_MODEL`; without them it answers `provider_not_configured` and charges nothing.
 
+## First-use organizations
+
+No seeding step is required. The first authenticated request from a verified user provisions exactly one
+organization plus an `owner` membership, with every key derived from their OIDC `sub`
+(`worker/src/provisioning.ts`). Repeats and concurrent first sign-ins are no-ops, an existing membership
+always wins, and a non-canonical subject is refused without creating a tenant. Covered by
+`tests/provisioning.test.ts`; still **not** exercised against a real D1 or a real session.
+
 ## Known limitation: cross-site session cookies
 
 The session cookie is `__Host-…`, **host-only**, `SameSite=Lax`. It is therefore sent only on the same
@@ -132,5 +150,7 @@ site: same origin ✅, sibling subdomains of one registrable domain ✅, unrelat
 - **No CI exists at all** — GitHub Actions was removed in ROADMAP TASK 01 by owner decision — so nothing
   performs deploys or gates them. Validation is the local gate
   (`bun install --frozen-lockfile` → `lint` → `test` → `build`) run by the agent, plus the verifier above.
-- Live sign-in, live organization membership and live AI generation are **unverified**; the first-organization
-  provisioning step does not exist in code yet (see the TASK 08 report §3.4).
+- Live sign-in and live AI generation are **unverified**.
+- Organization provisioning **now exists in code** (TASK 09, `worker/src/provisioning.ts`) and is tested
+  against real SQLite, but it has never run against a real D1 or a real signed-in session — that begins
+  with the first deploy. The TASK 08 report §3.4 describes the pre-TASK-09 state.

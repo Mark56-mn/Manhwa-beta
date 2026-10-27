@@ -26,10 +26,31 @@ database_id = "d9557398-b439-463a-b5aa-a3703d5c3fdb"
 binding = "FILES"
 bucket_name = "manhwa-studio-assets"
 
-# Sign in with Freebuff — public config, no secrets. Register with the owner's
-# Freebuff login (`npx @freebuff/auth register ...`) or Freebuff Desktop, then
-# set as wrangler [vars] or `wrangler secret`-free deployment vars:
+# ── Public configuration (TASK 09) ───────────────────────────────────────────
+# None of these is a secret, so all of them belong in [vars]. Values are set by
+# the owner once the deployment origin exists; this file never invents one.
+#
 # [vars]
-# FREEBUFF_CLIENT_ID = "<from provisioning>"
-# FREEBUFF_ISSUER    = "<from provisioning>"
-# APP_ORIGIN         = "https://<deployed-origin>"
+# FREEBUFF_CLIENT_ID = "<client id from `npx @freebuff/auth register`>"
+# FREEBUFF_ISSUER    = "https://freebuff.com/oidc"
+# APP_ORIGIN         = "https://<the API's own origin>"
+# ALLOWED_ORIGINS    = "https://<frontend origin>,https://<preview origin>"
+#
+# APP_ORIGIN is both the OIDC baseUrl and the first CORS allow-list entry, so it
+# must be this Worker's own origin. ALLOWED_ORIGINS lists the extra EXACT
+# origins a separately hosted frontend is served from — wildcards are
+# impossible by design (worker/src/origins.ts), because the browser sends the
+# session cookie with these requests.
+#
+# Secrets (never here, never in a Vite variable):
+#   bunx wrangler secret put GEMINI_API_KEY
+#   bunx wrangler secret put GEMINI_MODEL      # generation needs BOTH
+#   bunx wrangler secret put SUPABASE_URL      # optional secondary backup
+#   bunx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+#
+# First-use organizations need no configuration: worker/src/provisioning.ts
+# derives exactly one workspace per verified OIDC `sub` on first request.
+#
+# Hostname: this account has no workers.dev subdomain yet, so a deploy reports
+# the script without a public URL. Create the subdomain once in Workers & Pages,
+# or attach a custom domain from the active `oppa-technologies.online` zone.

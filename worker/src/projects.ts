@@ -3,7 +3,7 @@ import type { Context } from 'hono';
 import type { Env } from './env';
 import { authConfigured } from './auth';
 import { resolveFreebuffUser, type AuthenticatedUser, type UserResolver } from './identity';
-import { firstOrganizationForUser } from './tenancy';
+import { resolveOrganizationForUser } from './provisioning';
 import { isAllowedMutationOrigin } from './origins';
 
 /**
@@ -185,7 +185,9 @@ export function createProjectsApp(
       return { ok: false, response: c.json({ error: 'unauthorized' }, 401) };
     }
 
-    const organizationId = await firstOrganizationForUser(c.env, user.sub);
+    // Tenant scope comes from the verified session; a first-time user gets one
+    // workspace provisioned server-side (never from a client-supplied id).
+    const organizationId = await resolveOrganizationForUser(c.env, user);
     if (!organizationId) {
       return {
         ok: false,
