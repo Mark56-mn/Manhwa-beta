@@ -5,15 +5,24 @@ continuity, analytics, and approval records. Local project drafts live in browse
 the **shared cloud workspace** — projects, project profiles, Story Bibles, episodes, generation jobs and
 writing credits — calls the **Cloudflare Worker API (Hono)** through a single typed client.
 
-> **Honest status:** cloud Story Bible and episode generation are implemented against a real
-> server-side Gemini adapter, and the free plan's 100 writing credits are server-enforced. **No AI call
-> has been made live in this environment** (`GEMINI_API_KEY`/`GEMINI_MODEL` are unset), and **live
-> sign-in is unverified**: no OIDC client is configured here and the deployment answer is unconfirmed.
-> With no provider, generation returns a truthful `provider_not_configured` and nothing is charged.
-> Image, voice, video rendering and YouTube publishing are **not connected**. The code in this branch
-> has **not been deployed** and `migrations/0003_story_generation.sql` has **not been applied** to any
-> database; the only live Worker ever probed is the owner's Freebuff-hosted site (22 Oct 2026, see
-> [`docs/audits/FREEBUFF_DATABASE_ACCESS_PROBE.md`](docs/audits/FREEBUFF_DATABASE_ACCESS_PROBE.md)).
+> **Honest status (re-verified 27 October 2026):** cloud Story Bible and episode generation are
+> implemented against a real server-side Gemini adapter, and the free plan's 100 writing credits are
+> server-enforced. **No AI call has been made live in this environment** (`GEMINI_API_KEY`/`GEMINI_MODEL`
+> are unset), and **live sign-in is unverified**: no OIDC client is configured for a deployment origin
+> this repository controls. With no provider, generation returns a truthful `provider_not_configured`
+> and nothing is charged. Image, voice, video rendering and YouTube publishing are **not connected**.
+>
+> **Backend reachability, corrected:** the owner's Freebuff-hosted site is **up** (`/healthz` 200,
+> `/readyz` ready, `/api/v1/me` 401) but runs a **~40-commit stale** revision — it has no
+> `/api/v1/projects`, emits no CORS headers and serves no frontend, so it cannot serve this app. The
+> owner's own Cloudflare account already holds the real D1 (`manhwa-studio`, migration `0001` applied,
+> all tables empty) and R2 bucket (`manhwa-studio-assets`) that `wrangler.toml` targets, but **no Worker
+> has ever been deployed there**. `migrations/0002`/`0003` are **not applied to any live database**, and
+> the untracked duplicate `migrations/0002_assets.sql` currently **blocks** that apply (move it first).
+> A Vercel frontend is also live at <https://manhwa-beta.vercel.app>, built **without an API origin**,
+> so it is disconnected by construction and says so. Recommended route, exact commands and verified
+> evidence: [`docs/audits/TASK-08-BACKEND-RECOVERY-REPORT.md`](docs/audits/TASK-08-BACKEND-RECOVERY-REPORT.md).
+> Related earlier probes: [`docs/audits/FREEBUFF_DATABASE_ACCESS_PROBE.md`](docs/audits/FREEBUFF_DATABASE_ACCESS_PROBE.md).
 > Every capability is classified by verification level in
 > [`docs/audits/TASK-03-CAPABILITY-INVENTORY.md`](docs/audits/TASK-03-CAPABILITY-INVENTORY.md)
 > (see its 22 October 2026 reconciliation section).
@@ -22,13 +31,14 @@ writing credits — calls the **Cloudflare Worker API (Hono)** through a single 
 
 ## Verified local workflow
 
-These commands were run in this repository on 22 October 2026 with the exit codes shown.
+These commands were run in this repository on 22 October 2026 and re-run on 27 October 2026 with the
+exit codes shown (the 27 Oct re-run is the current count).
 
 | Step | Command | Exit |
 |---|---|---|
 | Install dependencies | `bun install --frozen-lockfile` | 0 |
 | Typecheck | `bun run lint` (runs `tsc --noEmit`) | 0 |
-| Tests | `bun run test` (bun test, 246 tests / 16 suites) | 0 |
+| Tests | `bun run test` (bun test, **317 tests / 22 files**, 1068 assertions) | 0 |
 | Production build | `bun run build` (Vite) | 0 |
 | Dev server | `bun run dev` (serves `0.0.0.0:3000`) | 0 (HTTP 200 verified) |
 
@@ -45,7 +55,12 @@ bun run build                   # output in dist/
 
 ## Testing and CI
 
-- **Tests:** `bun run test` runs 246 tests across sixteen suites:
+- **Tests:** `bun run test` runs **317 tests across 22 files** (verified 27 October 2026):
+  - `tests/task01-*.test.ts(x)` — the TASK-01 interaction, render and form suites, driven through a
+    scoped DOM harness (`tests/setup/dom.ts`): editor field state and validation, project creation and
+    deletion consistency, and empty/boundary inputs. The harness is registered per DOM test file rather
+    than globally, because a global preload replaces `Request`/`Response`/`fetch` and breaks the Worker
+    route tests.
   - `tests/honesty.test.ts` — scans application source and fails if fake-success strings,
     non-literal/unapproved `localStorage` keys, missing honest labels, or network I/O outside the single
     typed API client ever reappear.
@@ -96,8 +111,10 @@ bun run build                   # output in dist/
 
 - **API worker:** `wrangler.toml` + `worker/src/` define the Hono API (blueprint TASK 06 foundation).
   Verified locally with `bunx wrangler dev --port 8787` (`/healthz` → 200, `/readyz` reports real
-  binding status). **No deployment has been performed** — see `docs/DEPLOYMENT.md` for the documented
-  (unexecuted) deploy and rollback procedures.
+  binding status), and **verified to bundle for workerd** on 27 Oct 2026 via
+  `bunx wrangler deploy --dry-run` (192.20 KiB, gzip 44.12 KiB, bindings `env.DB` + `env.FILES`).
+  **No Worker has ever been deployed to the owner's account** (its script list is empty and it has no
+  `workers.dev` subdomain) — see `docs/DEPLOYMENT.md` for the verified deploy and rollback procedures.
 - **Bindings:** `DB` (D1) and `FILES` (R2) are wired in `wrangler.toml` and exercised by
   `tests/tenancy.test.ts` / `tests/projects.test.ts` / `tests/asset.test.ts` against real SQLite and
   in-memory R2. Per `docs/DEPLOYMENT.md` the D1 database and R2 bucket were provisioned on the owner's
@@ -106,15 +123,22 @@ bun run build                   # output in dist/
 - **Schema:** `migrations/0002_assets_and_replication.sql` and
   `migrations/0003_story_generation.sql` are committed but **not applied to any live database**.
   `0002` reconciles `assets` and adds the replication outbox; `0003` adds project profiles, versioned
-  Story Bibles/episodes, generation jobs, and the credit account/hold/ledger tables. Applying either
-  needs the owner's authorization; tests apply them to SQLite only.
+  Story Bibles/episodes, generation jobs, and the credit account/hold/ledger tables. Both are additive
+  (`IF NOT EXISTS`, no `DROP`/`ALTER`) and the live D1 holds **no rows**, so applying them risks no data;
+  tests apply them to SQLite only. Applying them needs the owner's authorization. **Before applying,
+  move the untracked duplicate `migrations/0002_assets.sql`** (`mv migrations/0002_assets.sql /tmp/`):
+  it sorts first, tries to create `assets` which already exists, and aborts the whole run.
 - **AI provider:** generation requires **both** `GEMINI_API_KEY` and an explicit `GEMINI_MODEL` as
   server-side Worker secrets. No model is invented and no paid fallback is used. The browser never
   calls the provider and never receives the key.
-- **Frontend:** static build (`bun run build` → `dist/`). Vercel readiness is configured and
-  documented in [`docs/DEPLOYMENT-VERCEL.md`](docs/DEPLOYMENT-VERCEL.md) (`vercel.json`,
-  `VITE_API_BASE_URL`, Worker `ALLOWED_ORIGINS`, `scripts/verify-deployment.mjs`); **no deployment
-  has been performed and no Vercel project exists yet**.
+- **Frontend:** static build (`bun run build` → `dist/`). Vercel settings are configured and documented
+  in [`docs/DEPLOYMENT-VERCEL.md`](docs/DEPLOYMENT-VERCEL.md) (`vercel.json`, `VITE_API_BASE_URL`, Worker
+  `ALLOWED_ORIGINS`, `scripts/verify-deployment.mjs`). A Vercel deployment **does exist and is live** at
+  <https://manhwa-beta.vercel.app> (verified 27 Oct 2026), but it was built with `VITE_API_BASE_URL`
+  unset — its bundle contains no API origin at all — so it is a disconnected frontend that reports that
+  fact instead of faking success. Its project settings, branch and commit **cannot be inspected from this
+  repository** (no Vercel credentials); set `VITE_API_BASE_URL` to the API origin and redeploy to
+  connect it.
 
 ## Secrets and environment
 
