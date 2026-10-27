@@ -92,6 +92,11 @@ allow-listed `Origin` → 403 with **no** provisioning.
 
 ## 2. Priority 2 — migration safety
 
+> **Superseded by TASK 10.** The conflict below was resolved *structurally*: `wrangler.toml` now sets
+> `migrations_dir = "db/migrations"` and the tracked chain lives there, so **no manual file move is needed**
+> and the untracked `migrations/0002_assets.sql` was never touched. The analysis here remains accurate for
+> *why* the conflict existed; see [`TASK-10-DEPLOYMENT-REVIEW.md`](TASK-10-DEPLOYMENT-REVIEW.md) §2.
+
 ### 2.1 Why the two files conflict
 
 | File | Tracked? | Effect on a database that already has `assets` |

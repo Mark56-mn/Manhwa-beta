@@ -28,7 +28,7 @@ const MIGRATIONS = [
   '0002_assets_and_replication.sql',
   '0003_story_generation.sql'
 ].map((file) =>
-  readFileSync(join(import.meta.dir, '..', 'migrations', file), 'utf8')
+  readFileSync(join(import.meta.dir, '..', 'db', 'migrations', file), 'utf8')
 );
 
 const APP_ORIGIN = 'https://app.example';

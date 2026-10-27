@@ -25,7 +25,7 @@ const MIGRATION_FILES = [
 
 function loadMigrations(): string[] {
   return MIGRATION_FILES.map((file) =>
-    readFileSync(join(import.meta.dir, '..', 'migrations', file), 'utf8')
+    readFileSync(join(import.meta.dir, '..', 'db', 'migrations', file), 'utf8')
   );
 }
 

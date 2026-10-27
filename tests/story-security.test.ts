@@ -44,7 +44,7 @@ describe('AI credentials stay server-side', () => {
     expect(ai).not.toMatch(/console\.(log|error|warn)/);
     expect(ai).not.toMatch(/[?&]key=/);
 
-    const migration = read('migrations/0003_story_generation.sql');
+    const migration = read('db/migrations/0003_story_generation.sql');
     expect(migration).not.toMatch(/api_key|credential|secret|token/i);
     expect(migration).toContain('provider');
     expect(migration).toContain('model');

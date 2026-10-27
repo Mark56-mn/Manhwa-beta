@@ -13,8 +13,8 @@ from the browser. No new database, no new bucket, no new identity provider.
 
 ## Preconditions (all must be true before step 4)
 
-- [ ] `bun run migrations:check` exits **0** (the untracked `migrations/0002_assets.sql` has been moved
-      aside by the owner — preserved at `/tmp/...`, **not** deleted).
+- [ ] `bun run migrations:check` exits **0** — **satisfied since TASK 10 by configuration**
+      (`migrations_dir = "db/migrations"`); the untracked `migrations/0002_assets.sql` stays in place.
 - [ ] The owner has authorized the first deploy and the first remote migration.
 - [ ] A hostname exists: the account's `workers.dev` subdomain, **or** a custom domain on the active
       `oppa-technologies.online` zone (id `27fc0052c37507c9ef98f9ff1d306a3f`).
@@ -26,7 +26,9 @@ from the browser. No new database, no new bucket, no new identity provider.
 1. **Re-verify state** (read-only): `wrangler whoami`, `d1 list`, `r2 bucket list`,
    `wrangler deploy --dry-run`. Confirmed baselines: D1 `d9557398-b439-463a-b5aa-a3703d5c3fdb` (7 tables,
    111 kB), R2 `manhwa-studio-assets`, **0 Worker scripts**, no `workers.dev` subdomain.
-2. **Quarantine the stray migration**, then re-run `bun run migrations:check` → expect exit 0.
+2. **Confirm the chain**: `bun run migrations:check` → exit 0, and
+   `wrangler d1 migrations list manhwa-studio --remote` → two pending (`0002_assets_and_replication.sql`,
+   `0003_story_generation.sql`). No file needs to move.
 3. **Local rehearsal** (already passing, repeat to confirm): apply the tracked chain to a throwaway local
    D1 and confirm all 15 application tables exist.
 4. **First deploy:** `bunx wrangler deploy`. Record the real origin.
@@ -36,8 +38,9 @@ from the browser. No new database, no new bucket, no new identity provider.
    **there are no down-migrations**.
 6. **Identity:** register the OIDC client for the deployed origin
    (`--redirect-uri https://<origin>/auth/freebuff/callback`), then set the public vars
-   `FREEBUFF_CLIENT_ID`, `FREEBUFF_ISSUER`, `APP_ORIGIN` (the API's own origin) and `ALLOWED_ORIGINS`
-   (exact frontend origins only). Redeploy if they were added to `wrangler.toml`.
+   `FREEBUFF_CLIENT_ID`, `FREEBUFF_ISSUER`, `APP_ORIGIN` (**the browser-facing frontend origin** — the SDK
+   derives `redirect_uri` from it, so the Worker's own hostname is wrong here) and `ALLOWED_ORIGINS`
+   (the API's own origin, plus exact extra origins). Redeploy if they were added to `wrangler.toml`.
 7. **Prove the backend:** `/healthz` 200; `/readyz` 200 with `d1: ok`, `r2: ok`, `auth: ok`,
    `origins: ok`; `node scripts/verify-deployment.mjs --api <origin> --origin <frontend>` exit 0;
    `GET /api/v1/me` → 503 before the OIDC client, 401 signed out, 200 after sign-in.
@@ -72,7 +75,8 @@ from the browser. No new database, no new bucket, no new identity provider.
 ## Known risks
 
 - **Cookie topology** — the single most likely failure (§4 of the TASK 09 report).
-- **Migration order** — a stray file in `migrations/` aborts the whole apply; the preflight exists for this.
+- **Migration order** — resolved in TASK 10 (`migrations_dir` points at the tracked `db/migrations`); the
+  preflight still guards any future chain, and `apply` has no `--yes` flag (use `CI=true`).
 - **No rollback for data** — worker rollback does not undo a migration; use the time-travel bookmark.
 - **Two divergent databases** exist historically (a platform-owned one and the owner's); the owner's is
   authoritative from step 5 onward.

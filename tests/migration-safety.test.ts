@@ -15,7 +15,7 @@ import { analyzeMigrationChain, stripSqlComments } from '../scripts/check-migrat
  * chain unappliable.
  */
 
-const MIGRATIONS_DIR = join(import.meta.dir, '..', 'migrations');
+const MIGRATIONS_DIR = join(import.meta.dir, '..', 'db', 'migrations');
 const TRACKED_CHAIN = [
   '0001_init_tenancy.sql',
   '0002_assets_and_replication.sql',

@@ -14,9 +14,15 @@
  *
  * Usage:  node scripts/check-migrations.mjs [migrationsDir]
  * Exit:   0 = safe to apply, 1 = at least one blocker.
+ *
+ * The default directory is `db/migrations` — the same one `wrangler.toml`
+ * declares as `migrations_dir`, so this checks exactly the chain that would be
+ * applied. The legacy `migrations/` directory is no longer read by wrangler (it
+ * holds an untracked duplicate); `legacyDirectoryNote` reports it without
+ * failing, because leaving that file alone is deliberate.
  */
 
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -117,9 +123,9 @@ export function formatReport(result) {
     lines.push(`BLOCKERS (${result.blockers.length}) — do NOT apply this chain:`);
     for (const blocker of result.blockers) lines.push(`  ✘ ${blocker}`);
     lines.push('');
-    lines.push('Remediation: quarantine the offending file (move it out of migrations/) and re-run.');
-    lines.push('A file that duplicates an already-applied object is preserved, not deleted:');
-    lines.push('  mv migrations/<file>.sql /tmp/<file>.sql.stray');
+    lines.push('Remediation: move the offending file OUT of the chain directory and re-run.');
+    lines.push('A file that duplicates an already-applied object is preserved, never deleted:');
+    lines.push('  mv <chain-dir>/<file>.sql /tmp/<file>.sql.stray');
     return lines.join('\n');
   }
   lines.push('OK — no blockers. Safe to apply to a database that already has earlier objects.');
@@ -137,8 +143,25 @@ export function analyzeMigrationsDirectory(directory) {
   return analyzeMigrationChain(files);
 }
 
+/**
+ * Informational only: `.sql` files sitting in the legacy directory that
+ * `migrations_dir` no longer points at. Never a blocker — they are not applied.
+ */
+export function legacyDirectoryNote(legacyDir = 'migrations') {
+  if (!existsSync(legacyDir)) return null;
+  const strays = readdirSync(legacyDir)
+    .filter((name) => name.endsWith('.sql'))
+    .sort();
+  if (strays.length === 0) return null;
+  return (
+    `Note: ${legacyDir}/ holds ${strays.length} .sql file(s) (${strays.join(', ')}) that wrangler no ` +
+    'longer reads, because migrations_dir points at the tracked chain. Left in place deliberately: ' +
+    'not part of any apply.'
+  );
+}
+
 function main() {
-  const directory = resolve(process.argv[2] ?? 'migrations');
+  const directory = resolve(process.argv[2] ?? 'db/migrations');
   let result;
   try {
     result = analyzeMigrationsDirectory(directory);
@@ -148,6 +171,8 @@ function main() {
   }
   console.log(`Migration preflight — ${directory}`);
   console.log(formatReport(result));
+  const legacy = legacyDirectoryNote();
+  if (legacy) console.log(`\n${legacy}`);
   process.exit(result.blockers.length > 0 ? 1 : 0);
 }
 

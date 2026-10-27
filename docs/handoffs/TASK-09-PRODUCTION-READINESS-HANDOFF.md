@@ -64,7 +64,9 @@ No application UI was changed. No dependency was added or upgraded; `bun.lock` i
 
 ## 4. Blocked on the owner (in this order)
 
-1. `mv migrations/0002_assets.sql /tmp/0002_assets.sql.stray` and confirm `bun run migrations:check` → 0.
+1. ~~Move the untracked duplicate~~ — **resolved in TASK 10 by configuration** (`migrations_dir =
+   "db/migrations"`). `bun run migrations:check` now exits 0 and the untracked file stays exactly where it
+   is. Do not point `migrations_dir` back at `migrations/`.
 2. Create the `workers.dev` subdomain **or** choose the custom domain (`oppa-technologies.online` zone is
    active, id `27fc0052c37507c9ef98f9ff1d306a3f`).
 3. Authorize `bunx wrangler deploy` and, after the restore bookmark,

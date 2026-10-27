@@ -22,7 +22,7 @@ const MIGRATIONS = [
   '0001_init_tenancy.sql',
   '0002_assets_and_replication.sql',
   '0003_story_generation.sql'
-].map((file) => readFileSync(join(import.meta.dir, '..', 'migrations', file), 'utf8'));
+].map((file) => readFileSync(join(import.meta.dir, '..', 'db', 'migrations', file), 'utf8'));
 
 const APP_ORIGIN = 'https://app.example';
 const NOW = new Date('2026-10-23T12:00:00Z');

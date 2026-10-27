@@ -22,7 +22,7 @@ import { createSqliteD1 } from './helpers/d1';
  */
 
 const MIGRATIONS = ['0001_init_tenancy.sql', '0002_assets_and_replication.sql'].map((file) =>
-  readFileSync(join(import.meta.dir, '..', 'migrations', file), 'utf8')
+  readFileSync(join(import.meta.dir, '..', 'db', 'migrations', file), 'utf8')
 );
 
 let raw: Database;

@@ -15,13 +15,18 @@ Read this with `docs/DEPLOYMENT.md` (the Worker/API deploy procedure) and
 |---|---|---|---|
 | Frontend (this repo's React SPA) | **Vercel**, static | `src/`, `index.html`, `vercel.json` | built and tested locally; **not deployed** |
 | API | **Cloudflare Worker** (Hono) | `worker/`, `wrangler.toml` | deployed only as the owner's Freebuff site (`site-ad1c92…freebuff.page`); the owner's own `manhwa-studio-api` Worker is **not deployed** |
-| Database | **D1** (`DB` binding) | `migrations/` | schema committed; migrations **not applied** to any newly created database |
+| Database | **D1** (`DB` binding) | `db/migrations/` (`migrations_dir`) | schema committed; migrations **not applied** to any created database, but the chain is preflight-clean and applies cleanly to a disposable local D1 (TASK 10) |
 | Files | **R2** (`FILES` binding) | `worker/src/assets.ts` | bound in `wrangler.toml` |
 | Identity | **Sign in with Freebuff** (OIDC) | `worker/src/auth.ts` | client registered only on the Freebuff-hosted deployment |
 
-The Vercel frontend is a **static** build. It has no server runtime, no proxy, and no
-credentials of its own. Every server-backed feature is reached by the browser calling the API
-origin configured at build time.
+The Vercel frontend is a **static** build. It has no server runtime and no credentials of its own. Every
+server-backed feature is reached by the browser calling the API origin configured at build time.
+
+**Recommended change (TASK 10):** add same-origin rewrites for `/api/*` and `/auth/*` to the Worker so the
+session cookie can exist at all — the SDK's cookie is `__Host-…; SameSite=Lax` with no `Domain` attribute,
+so a separately hosted API is unreachable for a signed-in user. In that topology `VITE_API_BASE_URL` stays
+**empty**, and `APP_ORIGIN` is this frontend's origin. Details:
+[`docs/audits/TASK-10-DEPLOYMENT-REVIEW.md`](audits/TASK-10-DEPLOYMENT-REVIEW.md) §3.
 
 ---
 

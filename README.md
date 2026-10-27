@@ -18,7 +18,8 @@ writing credits — calls the **Cloudflare Worker API (Hono)** through a single 
 > owner's own Cloudflare account already holds the real D1 (`manhwa-studio`, migration `0001` applied,
 > all tables empty) and R2 bucket (`manhwa-studio-assets`) that `wrangler.toml` targets, but **no Worker
 > has ever been deployed there**. `migrations/0002`/`0003` are **not applied to any live database**, and
-> the untracked duplicate `migrations/0002_assets.sql` currently **blocks** that apply (move it first).
+> the chain now lives in `db/migrations` (`migrations_dir`), so the untracked duplicate left in
+> `migrations/` no longer blocks the apply (TASK 10 resolved it structurally, without touching that file).
 > A Vercel frontend is also live at <https://manhwa-beta.vercel.app>, built **without an API origin**,
 > so it is disconnected by construction and says so. Recommended route, exact commands and verified
 > evidence: [`docs/audits/TASK-08-BACKEND-RECOVERY-REPORT.md`](docs/audits/TASK-08-BACKEND-RECOVERY-REPORT.md).
@@ -105,8 +106,9 @@ bun run build                   # output in dist/
     output, provider/credit/sign-in failures, key reuse only for uncertain requests, editing and approval.
 - **Migration preflight:** `bun run migrations:check` (or `node scripts/check-migrations.mjs`) statically
   rejects a chain that cannot be applied — non-idempotent DDL, `DROP`/`ALTER`/`DELETE`, duplicate
-  prefixes, empty files. It exits **1 today** because the untracked `migrations/0002_assets.sql` is a
-  genuine blocker; that is the check working, not a broken build. Run it before any remote apply.
+  prefixes, empty files. It checks exactly the chain `wrangler.toml` declares
+  (`migrations_dir = "db/migrations"`) and reports, without failing, any `.sql` file left in the legacy
+  `migrations/` directory. Run it before any remote apply; it exits 0 today.
   - `tests/story-security.test.ts` — static guards that the provider key, model and host never reach
     browser code, are not logged or persisted, and that plan/balance/cost cannot come from a body.
   - `tests/replication.test.ts` — outbox idempotency, retries with backoff, duplicate targets, and the
@@ -132,14 +134,16 @@ bun run build                   # output in dist/
   in-memory R2. Per `docs/DEPLOYMENT.md` the D1 database and R2 bucket were provisioned on the owner's
   account and a local `wrangler dev` readiness probe reported `d1: ok` / `r2: ok`; that live
   provisioning has **not** been independently re-verified from the repository.
-- **Schema:** `migrations/0002_assets_and_replication.sql` and
-  `migrations/0003_story_generation.sql` are committed but **not applied to any live database**.
+- **Schema:** `db/migrations/0002_assets_and_replication.sql` and
+  `db/migrations/0003_story_generation.sql` are committed but **not applied to any live database**.
   `0002` reconciles `assets` and adds the replication outbox; `0003` adds project profiles, versioned
   Story Bibles/episodes, generation jobs, and the credit account/hold/ledger tables. Both are additive
   (`IF NOT EXISTS`, no `DROP`/`ALTER`) and the live D1 holds **no rows**, so applying them risks no data;
-  tests apply them to SQLite only. Applying them needs the owner's authorization. **Before applying,
-  move the untracked duplicate `migrations/0002_assets.sql`** (`mv migrations/0002_assets.sql /tmp/`):
-  it sorts first, tries to create `assets` which already exists, and aborts the whole run.
+  tests apply them to SQLite only. Applying them needs the owner's authorization. The chain applies
+  cleanly to a disposable local D1 (3 migrations, 13 commands, re-apply a no-op) and the remote pending
+  set is exactly these two files — see `docs/audits/TASK-10-DEPLOYMENT-REVIEW.md`. The untracked duplicate
+  `migrations/0002_assets.sql` is **still in the repository, untouched and no longer read by wrangler**,
+  because `migrations_dir` points at the tracked chain.
 - **AI provider:** generation requires **both** `GEMINI_API_KEY` and an explicit `GEMINI_MODEL` as
   server-side Worker secrets. No model is invented and no paid fallback is used. The browser never
   calls the provider and never receives the key.
@@ -168,7 +172,8 @@ bun run build                   # output in dist/
 ```
 src/                 React app (App shell, components, demo seed data, types)
 worker/              Cloudflare Worker API (Hono): health/readiness, auth-ready routes
-migrations/          D1 SQL migrations (applied to the real database in TASK 07)
+db/migrations/       D1 SQL migrations — the tracked chain wrangler applies (`migrations_dir`)
+migrations/          legacy directory; no longer read by wrangler (holds an untracked duplicate)
 tests/               bun test suites (honesty, storage, seed, tenancy, assets, projects, origins, auth, backup)
 scripts/             Operator helpers (e.g. store-secrets.sh)
 tasks/               Authoritative task definitions + roadmap reconciliation

@@ -27,11 +27,14 @@ owner's **Freebuff-hosted site**, which runs a **~40-commit stale** revision of 
 - `.env.local` populated via `bash scripts/store-secrets.sh` (gitignored, mode 600).
 - Owner authorization — deployment is never performed automatically.
 
-## ⚠ Mandatory first step: remove the stray migration
+## Migration chain: resolved by configuration (TASK 10)
 
-```bash
-mv migrations/0002_assets.sql /tmp/0002_assets.sql.stray   # reversible; or: rm migrations/0002_assets.sql
-```
+`wrangler.toml` sets `migrations_dir = "db/migrations"`, so the chain wrangler applies is exactly the three
+tracked files. The untracked `migrations/0002_assets.sql` — a bare `CREATE TABLE assets` that used to sort
+first and abort the whole apply with `table assets already exists` — is **still in the repository,
+untouched, and is no longer read by wrangler**. Do not delete it, and do not point `migrations_dir` back at
+`migrations/` while it is there. Verified: `wrangler d1 migrations list --remote` shows only
+`0002_assets_and_replication.sql` and `0003_story_generation.sql` pending.
 
 Verify the chain statically first — this touches no database, remote or local:
 
@@ -39,8 +42,8 @@ Verify the chain statically first — this touches no database, remote or local:
 bun run migrations:check        # exit 0 = safe to apply; exit 1 = a blocker, printed with remediation
 ```
 
-It exits **1 today**, and that is the check working: the stray file below is a real blocker. Never apply a
-chain the preflight rejects.
+It exits **0** today; it also prints a note listing any `.sql` files left in the legacy `migrations/`
+directory. Never apply a chain the preflight rejects.
 
 `migrations/0002_assets.sql` is an **untracked duplicate** of the tracked
 `0002_assets_and_replication.sql`. It contains a bare `CREATE TABLE assets` while the live database
@@ -67,8 +70,9 @@ bunx wrangler d1 time-travel info manhwa-studio             # restore point (ver
 bunx wrangler deploy --dry-run --outdir=/tmp/dryrun         # local bundle; uploads nothing
 
 # 3. Group 2 — local rehearsal on the disposable local database:
-mv migrations/0002_assets.sql /tmp/0002_assets.sql.stray
-bunx wrangler d1 migrations apply manhwa-studio --local
+bunx wrangler d1 migrations list manhwa-studio --local --persist-to /tmp/rehearsal   # 3 tracked files
+CI=true bunx wrangler d1 migrations apply manhwa-studio --local --persist-to /tmp/rehearsal
+#   (apply has no --yes flag; CI=true plus a TTY or piped confirmation is required)
 
 # 4. Group 3 — reversible configuration:
 #    add to wrangler.toml [vars]: FREEBUFF_CLIENT_ID, FREEBUFF_ISSUER, APP_ORIGIN, ALLOWED_ORIGINS
@@ -95,7 +99,7 @@ attach a custom domain. `oppa-technologies.online` is active on this account, so
 ## Bindings
 
 - **D1 (`DB`)** — `manhwa-studio`, `d9557398-b439-463a-b5aa-a3703d5c3fdb`, WNAM. `0001_init_tenancy.sql`
-  applied. New migrations: add `migrations/000N_*.sql`, then
+  applied. New migrations: add `db/migrations/000N_*.sql` (the `migrations_dir` chain), then
   `bunx wrangler d1 migrations apply manhwa-studio --local` and (authorized) `--remote`.
   `/readyz` hard-gates on a real `SELECT 1`.
 - **R2 (`FILES`)** — `manhwa-studio-assets`. Enabled on the account 2026-10-19; the earlier `error 10042`
@@ -124,6 +128,11 @@ The session cookie is `__Host-…`, **host-only**, `SameSite=Lax`. It is therefo
 site: same origin ✅, sibling subdomains of one registrable domain ✅, unrelated domains ❌ (a
 `*.vercel.app` frontend calling a `*.workers.dev` API cannot sign in — the app will load and then answer
 401 honestly). Use one parent domain, or serve the SPA from the Worker itself.
+
+**With the recommended Vercel-proxy topology** (`docs/audits/TASK-10-DEPLOYMENT-REVIEW.md` §3), set
+`APP_ORIGIN` to the **frontend** origin — the SDK derives `redirect_uri` from it, so it must be the origin
+the browser sees, never the Worker's own hostname. Getting this backwards means the `__Host-` cookie lands
+on the wrong host and every call answers 401.
 
 ## Environment separation
 

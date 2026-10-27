@@ -13,11 +13,19 @@ main = "worker/src/index.ts"
 compatibility_date = "2025-09-01"
 account_id = "78bd087d85c6604c2dc25195a80eac91"
 
-# D1 (created 19 Oct 2026, region WNAM; migrations in ./migrations)
+# D1 (created 19 Oct 2026, region WNAM).
+#
+# `migrations_dir` deliberately points at `db/migrations` instead of the default
+# `migrations/`. That legacy directory holds an untracked duplicate
+# (`0002_assets.sql`) which sorts BEFORE the tracked `0002` and aborts the whole
+# apply on a database that already has `assets`. The untracked file is the
+# owner's and is deliberately left exactly where it is; the deploy path simply
+# no longer reads it. Verified with `wrangler d1 migrations list` (TASK 10).
 [[d1_databases]]
 binding = "DB"
 database_name = "manhwa-studio"
 database_id = "d9557398-b439-463a-b5aa-a3703d5c3fdb"
+migrations_dir = "db/migrations"
 
 # R2 — enabled 19 Oct 2026 (account-level R2 subscription activated by owner).
 # Bucket `manhwa-studio-assets` created 19 Oct 2026 (WNAM, Standard) on account

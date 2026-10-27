@@ -44,7 +44,7 @@ beforeEach(() => {
   db = new Database(':memory:');
   db.exec('PRAGMA foreign_keys = ON');
   for (const file of MIGRATION_FILES) {
-    db.exec(readFileSync(join(import.meta.dir, '..', 'migrations', file), 'utf8'));
+    db.exec(readFileSync(join(import.meta.dir, '..', 'db', 'migrations', file), 'utf8'));
   }
 });
 
