@@ -465,7 +465,111 @@ Everything below was executed today in this workspace. Nothing live was mutated.
 
 ---
 
-## 6. Explicitly not done
+## 6. TASK 08A — live backend re-verification (27 Oct 2026, read-only)
+
+Same account, same credential, no deploy, no application-code change. This section answers 08A's six
+questions with the evidence as measured.
+
+### 6.1 Is a Manhwa Beta Worker deployed? **No — and no `workers.dev` URL can exist**
+
+| Probe (read-only) | Actual result |
+|---|---|
+| `GET /accounts/78bd087d…/workers/scripts` | `{"result":[],"success":true,"errors":[]}` — **zero scripts** |
+| `GET /accounts/…/workers/scripts/manhwa-studio-api` | **HTTP 404** `{"code":10007,"message":"This Worker does not exist on your account."}` |
+| `GET /accounts/…/workers/scripts/manhwa-studio-api/deployments` | identical **`10007`** |
+| `GET /accounts/…/pages/projects` | `{"result":[],…}` — **no Pages project** either (a Pages deploy would also be a live Worker) |
+| `GET /accounts/…/workers/subdomain` | **error 10007** — "You do not have a workers.dev subdomain" |
+| `bunx wrangler deployments list --name manhwa-studio-api` | `✘ [ERROR] … This Worker does not exist on your account. [code: 10007]` |
+| DNS `manhwa-studio-api.workers.dev` | **NXDOMAIN** |
+
+**Why the empty list is authoritative rather than a permission artifact:** the named-script probe answers
+**`404` / `10007` "does not exist"**, not `403` / error `10000`. A token without Workers read scope
+produces a permission error; this token reads the account's Worker namespace and reports *not found*. So:
+
+- **real deployed name:** none — `manhwa-studio-api` exists only as `name = "manhwa-studio-api"` in `wrangler.toml`;
+- **deployment status:** not deployable-to-inspect — `wrangler deployments list` cannot enumerate it;
+- **`workers.dev` URL:** **none, and none is possible**, because the account has no `workers.dev` subdomain.
+  One is minted by opening Workers & Pages once in the dashboard; the alternative is a custom-domain route.
+
+### 6.2 Deployed vs configuration-only vs local-only
+
+| Piece | **Deployed (live, over the internet)** | In configuration only | Local development only |
+|---|---|---|---|
+| API Worker | Freebuff-platform Worker `site-ad1c922229fc492d966ca1d060a96319`, published 2026-10-22T11:25:44Z on platform account `6e5a40dd9362fb315de7ecbaad2ca12b` | `name = "manhwa-studio-api"` (never uploaded) | bundles to 196,813 B via `deploy --dry-run --outdir=/tmp` |
+| D1 | **platform** D1 `site-1d7d701600f44a05bc02ddd6ce56d288` (bound to the deployed Worker) | `DB` → owner's `manhwa-studio` `d9557398-b439-463a-b5aa-a3703d5c3fdb` — **exists but nothing binds it** | `.wrangler/state` copy (disposable) |
+| R2 | **platform** R2 `site-8179e1b534df41b4a059b13ebb2aaba6` | `FILES` → owner's `manhwa-studio-assets` — **exists but nothing binds it** | in-memory double in tests |
+| Identity | Freebuff OIDC client `942e460d-c8fb-45f4-9005-8b497eb1c6a7`, issuer `https://freebuff.com/oidc`, callback `https://site-ad1c92…/auth/freebuff/callback` | — nothing configured on the owner's account | injected test doubles |
+
+**Therefore: the owner's D1 and R2 are reachable with the owner's credentials (list + real SQL read
+succeeded, and the dry-run resolves both bindings) but they are *not* attached to any deployed Worker —
+no Manhwa Beta Worker exists to attach them to.** The deployed Worker uses *different* (platform)
+resources, which is the duplicate-store problem flagged in §1.3.
+
+### 6.3 Read-only HTTP against the one live backend
+
+```
+GET /healthz  → HTTP 200  application/json  {"status":"ok"}
+
+GET /readyz   → HTTP 200  application/json
+{"status":"ready","checks":{
+  "d1":   {"status":"ok","detail":"D1 binding answered SELECT 1."},
+  "r2":   {"status":"ok","detail":"R2 binding attached (bucket manhwa-studio-assets)."},
+  "auth": {"status":"ok","detail":"Sign in with Freebuff client configured."}}}
+```
+
+### 6.4 Authentication status (no secret read or printed)
+
+- On the **deployed platform Worker**: configured — `auth: ok`, client `942e460d-…` (a *public* OIDC
+  client id, already recorded in `FREEBUFF_DATABASE_ACCESS_PROBE.md`), sign-in returns `303` with an
+  HttpOnly `__Host-freebuff_txn-…` cookie (`SameSite=Lax`). No client secret exists for this SDK.
+- On the **owner's account**: **nothing configured** — no Worker, therefore no vars and no secrets;
+  `FREEBUFF_CLIENT_ID` / `FREEBUFF_ISSUER` / `APP_ORIGIN` appear nowhere but `.env.example` placeholders.
+  Credential checks were by **presence of the name only**; no value was printed, logged or committed.
+
+### 6.5 Three caveats that make `/readyz` weaker evidence than it looks
+
+1. The `r2` detail string `"R2 binding attached (bucket manhwa-studio-assets)."` is a **hardcoded literal
+   in `worker/src/index.ts`**; the live Worker is actually bound to `site-8179e1b5…`. Read the
+   parenthetical as the code's own text, **not** as proof of which bucket is attached.
+2. `d1: ok` means a `SELECT 1` succeeded, and **`SELECT 1` succeeds on an empty database** — so it does
+   **not** prove the tenancy schema exists. The platform D1's schema cannot be inspected from here.
+3. The REST field `num_tables` is stale: `GET /d1/database` reported `num_tables: 0` for the owner's
+   database while an actual SQL read returned **7 tables** (`wrangler d1 info` agrees). Trust the SQL.
+
+### 6.6 What is missing, and the prepared commands
+
+**Missing, in dependency order:** (1) the Worker script itself — never deployed; (2) a hostname — no
+`workers.dev` subdomain, or a custom-domain route; (3) migrations `0002`/`0003` on the owner's D1
+(**and** removal of the untracked `migrations/0002_assets.sql`, which aborts the apply — §3.2); (4) an
+OIDC client for the new origin plus the `FREEBUFF_*` / `APP_ORIGIN` / `ALLOWED_ORIGINS` vars;
+(5) optional `GEMINI_API_KEY` + `GEMINI_MODEL`; (6) the organization-provisioning gap (§3.4).
+
+Every prepared command below was **executed in this verification** and behaved as annotated; none of them
+uploads anything or mutates production:
+
+```bash
+export PATH="$HOME/.bun/bin:$PATH"
+export CLOUDFLARE_API_TOKEN=$(grep '^CLOUDFLARE_API_TOKEN=' .env.local | cut -d= -f2-)   # never printed
+bunx wrangler whoami                          # 1 account: 78bd087d85c6604c2dc25195a80eac91
+bunx wrangler deploy --dry-run --outdir=/tmp  # 192.20 KiB, gzip 44.12 KiB; env.DB + env.FILES resolved; "--dry-run: exiting now"
+bunx wrangler d1 migrations list manhwa-studio --remote    # 0002_assets.sql, 0002_assets_and_replication.sql, 0003_story_generation.sql
+bunx wrangler d1 time-travel info manhwa-studio            # restore point available immediately before any apply
+bunx wrangler d1 execute manhwa-studio --remote --json --command "SELECT id, name FROM d1_migrations ORDER BY id"  # exactly 0001
+```
+
+Then, **only with authorization**: `wrangler deploy`, `mv migrations/0002_assets.sql /tmp/`,
+`wrangler d1 migrations apply manhwa-studio --remote`, the vars/secrets and the OIDC registration — the
+grouped checklist is §4.
+
+### 6.7 State after this verification
+
+Unchanged from §1: **zero** Worker scripts, **one** D1, **one** R2, `d1_migrations` holding **exactly
+one** row, and the platform site still the only published Manhwa backend. The dry-run wrote only to
+`/tmp`. Nothing was deployed, migrated, registered or configured.
+
+---
+
+## 7. Explicitly not done
 
 No merge into `main`, no PR merge, no force-push, no Worker deploy, no remote migration, no production
 data write, no OIDC registration, no secret or production setting changed, no paid service enabled, no AI
