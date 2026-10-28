@@ -71,12 +71,32 @@ describe('.env.example documents the deployment contract', () => {
     expect(text).toContain('ALLOWED_ORIGINS');
   });
 
-  test('no secret-looking name is exposed through a VITE_ variable', () => {
-    const exposed = text
+  // A Supabase *publishable* (or legacy anon) key is public by design — that is
+  // its whole purpose — so its name is the one exception. Every other
+  // credential-looking name must never carry a VITE_ prefix.
+  const PUBLIC_KEY_NAME = /(?:_|^)(?:PUBLISHABLE|ANON)_KEY$/;
+
+  function exposedCredentialNames(source: string): string[] {
+    return source
       .split('\n')
       .filter((line) => /^\s*VITE_[A-Z0-9_]*\s*=/.test(line))
-      .filter((line) => /(KEY|SECRET|TOKEN|PASSWORD|DATABASE|SERVICE_ROLE)/i.test(line));
-    expect(exposed).toEqual([]);
+      .filter((line) => {
+        const name = line.match(/^\s*(VITE_[A-Z0-9_]+)/)?.[1] ?? '';
+        if (PUBLIC_KEY_NAME.test(name)) return false;
+        return /(KEY|SECRET|TOKEN|PASSWORD|DATABASE|SERVICE_ROLE|PRIVATE)/i.test(line);
+      });
+  }
+
+  test('no secret-looking name is exposed through a VITE_ variable', () => {
+    expect(exposedCredentialNames(text)).toEqual([]);
+  });
+
+  test('the guard still catches a secret-named VITE_ variable', () => {
+    expect(exposedCredentialNames('VITE_SUPABASE_SECRET_KEY="x"\n')).toHaveLength(1);
+    expect(exposedCredentialNames('VITE_SUPABASE_SERVICE_ROLE_KEY="x"\n')).toHaveLength(1);
+    expect(exposedCredentialNames('VITE_GEMINI_API_KEY="x"\n')).toHaveLength(1);
+    expect(exposedCredentialNames('VITE_SUPABASE_PUBLISHABLE_KEY="x"\n')).toEqual([]);
+    expect(exposedCredentialNames('VITE_SUPABASE_ANON_KEY="x"\n')).toEqual([]);
   });
 });
 

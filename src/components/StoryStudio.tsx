@@ -400,12 +400,9 @@ export function StoryStudio({ project }: StoryStudioProps) {
           <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0" />
           <span>Sign in required. No Story Bible, episode or credit data was loaded.</span>
         </p>
-        <a
-          href={`${api.baseUrl}/auth/freebuff/signin?returnTo=%2F`}
-          className="px-3 py-1.5 text-xs font-semibold text-slate-900 bg-cyan-400 rounded-lg hover:bg-cyan-300 shrink-0"
-        >
-          Sign in with Freebuff
-        </a>
+        <p className="text-[11px] text-slate-500 sm:max-w-xs">
+          Sign in again in the Shared workspace panel above. Nothing was loaded for this project.
+        </p>
       </div>
     );
   }

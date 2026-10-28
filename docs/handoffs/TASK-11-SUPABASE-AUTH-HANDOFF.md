@@ -1,52 +1,63 @@
-# TASK 11 handoff — Supabase Auth (plan stage)
+# TASK 11 handoff — Supabase Auth
 
-**Branch:** `task/TASK-10-DEPLOYMENT-REVIEW` @ `eade008`
-**State:** inspection and plan only. No code, dependency, migration, secret or
-production setting was changed.
-**Full report:** `docs/audits/TASK-11-SUPABASE-AUTH-PLAN.md`
+**Branch:** `task/TASK-11-SUPABASE-AUTH` · **Base:** `main` at the time of branching
+**Read first:** [`docs/audits/TASK-11-IMPLEMENTATION-REPORT.md`](../audits/TASK-11-IMPLEMENTATION-REPORT.md),
+then [`docs/audits/TASK-11-SUPABASE-AUTH-PLAN.md`](../audits/TASK-11-SUPABASE-AUTH-PLAN.md) (the
+inspected plan this implements).
 
-## What was done
+## State
 
-- Read the entire current auth path: `worker/src/auth.ts`,
-  `worker/src/identity.ts`, `worker/src/index.ts`, `worker/src/origins.ts`,
-  `worker/src/projects.ts|story.ts|assets.ts`, `worker/src/tenancy.ts`,
-  `worker/src/provisioning.ts`, `src/lib/api.ts`, `src/lib/cloudWorkspace.ts`,
-  `src/components/CloudWorkspacePanel.tsx`, `db/migrations/0001_init_tenancy.sql`,
-  `package.json`, `wrangler.toml`, `vercel.json`, `.env.example`, and the eight
-  test files that touch auth.
-- Identified eight compatibility problems, two of which change the design
-  rather than the code (CORS header allow-list; cookie vs Bearer transport).
-- Confirmed **no migration is needed** for Supabase subjects and that the
-  untracked `migrations/0002_assets.sql` is untouched (sha256 `e28317fa1ccc30d8…`).
+Code complete for the agreed scope: Worker verifies Supabase access tokens, the browser owns the
+session (register / sign in / sign out / restore / reset), Freebuff OIDC is removed and its routes
+answer `410`, provisioning accepts UUID subjects unchanged, and no migration was added.
 
-## Things the next agent must not get wrong
+Verified locally: frozen install, typecheck/lint, `bun test --isolate` (**406 pass / 0 fail**),
+`bun run build`, and a `dist/` secret scan. **Nothing was deployed, migrated, or configured in
+production.** Live sign-in is unverified because no Supabase project exists for this repository.
 
-1. `ALLOWED_REQUEST_HEADERS` in `worker/src/origins.ts` must gain
-   `Authorization`, or every cross-origin authenticated call dies at preflight.
-2. Supabase puts the session in `localStorage`. `src/lib/api.ts` currently
-   promises "no token in browser storage"; that sentence and the matching
-   honesty test must change in the same commit — do not leave a false claim.
-3. Verify ES256 against the JWKS with an explicit `algorithms` list; never
-   accept `alg: none` or an algorithm taken from the token header; never use
-   `service_role` for verification.
-4. `iss` trailing-slash spelling differs historically — normalise and test both.
-5. Do not link old Freebuff `sub`s to Supabase identities by email. The schema
-   forbids email lookups for a reason (P6 in the report).
-6. Provisioning and tenancy need **no logic change**; only the resolver import.
-7. Keep the `503 auth_not_configured` contract — it is what makes an
-   unconfigured deployment honest instead of half-working.
+## The five owner actions, in order
 
-## Blocked on
+1. **Create the Supabase project** (free tier is enough). Copy the project URL and the
+   **publishable** key — never the service-role key.
+2. **Configure Auth → URL Configuration:** Site URL = the frontend origin;
+   Redirect URLs = that origin and `/<path>` used for recovery (at minimum the bare origin).
+   Decide whether email confirmation stays on (default). If it stays on, expect
+   "confirmation required" after registration, not an immediate session.
+3. **Vercel → Environment Variables (Production + Preview):**
+   `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, and `VITE_API_BASE_URL` (the Worker
+   origin). All three are public; redeploy — these are build-time values.
+4. **Worker `[vars]`:** `SUPABASE_URL` (bare origin), `APP_ORIGIN` (the Worker's own origin),
+   `ALLOWED_ORIGINS` (the Vercel production origin and any preview origin actually used).
+   No auth callback is registered on the Worker any more. **No new migration is needed.**
+5. **Deploy the Worker, then verify:**
+   `node scripts/verify-deployment.mjs --api https://<worker> --origin https://<frontend> --frontend <url>` —
+   check 4 now also asserts `authorization` is advertised in the preflight.
 
-- Owner decisions: transport model, whether to retire Freebuff, `sub` handling,
-  approval for `jose` + `@supabase/supabase-js`.
-- Owner configuration: Supabase project, Site URL/redirect allow-list, email
-  confirmation policy, Vercel variables, Worker `SUPABASE_URL`.
+Then the only proof that matters: register, confirm, sign in, create one cloud project, reload,
+confirm it persists. That has **not** been done by an agent.
 
-## Next action
+## What a next agent must not do
 
-Obtain answers to §10 of the report, then implement in this order:
-backend verifier + CORS header → identity mapping → frontend client/panel →
-test updates and new suites → docs. Run `tsc`, `lint`, `test`, `build`,
-`migrations:check`, the bundle secret scan, and the Worker dry-run before any
-deployment is discussed.
+- Do not merge into `main`, deploy the Worker, apply remote migrations, or register production
+  auth clients without explicit owner authorization.
+- Do not touch `migrations/0002_assets.sql` — it is untracked, owner-owned, and no longer read by
+  wrangler (`migrations_dir = "db/migrations"`).
+- Do not "fix" sign-in by email-matching old Freebuff users onto new Supabase identities. That is
+  the account-takeover path the schema deliberately forbids.
+- Do not add a service-role key to any `VITE_` variable; the client rejects it at runtime, and a
+  test asserts that rejection.
+
+## Known gaps worth a follow-up task
+
+1. **Password recovery completion UI.** The reset request is wired and `detectSessionInUrl` +
+   PKCE exchange is configured, but there is no screen that reads the recovery session and calls
+   `updateUser({ password })`. `changePassword()` exists in `src/lib/authSession.ts` and is tested;
+   only the UI is missing. Until then, a recovery link signs the user in without offering a new
+   password form.
+2. **Live verification** of `/api/v1/me`, tenancy provisioning, and cross-origin bearer calls
+   against a deployed Worker + real Supabase token.
+3. **Token lifetime policy.** Defaults are Supabase's; document the chosen access-token TTL and
+   refresh interval once the project exists.
+4. `docs/DEPLOYMENT.md` and `docs/DEPLOYMENT-VERCEL.md` were updated for the new topology; the
+   historical TASK 08/10 reports still describe the Freebuff era and are intentionally left as
+   evidence.

@@ -4,7 +4,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import type { Env } from '../worker/src/env';
 import type { AuthenticatedUser } from '../worker/src/identity';
-import { normalizeVerifiedUser, resolveFreebuffUser } from '../worker/src/identity';
+import { normalizeVerifiedUser, resolveSupabaseUser } from '../worker/src/identity';
 import { authConfigured } from '../worker/src/auth';
 import { createProjectsApp } from '../worker/src/projects';
 import { createAssetApp } from '../worker/src/assets';
@@ -76,8 +76,7 @@ function makeEnv(overrides: Partial<Env> = {}): Env {
   return {
     DB: createSqliteD1(db),
     FILES: files as unknown as Env['FILES'],
-    FREEBUFF_CLIENT_ID: 'client-test',
-    FREEBUFF_ISSUER: 'https://issuer.test',
+    SUPABASE_URL: 'https://project.supabase.co',
     APP_ORIGIN,
     ALLOWED_ORIGINS: SECOND_HOST,
     ...overrides
@@ -121,54 +120,66 @@ describe('verified identity normalization', () => {
 });
 
 describe('configuration is valid before auth is reported configured', () => {
-  const base: Partial<Env> = {
-    FREEBUFF_CLIENT_ID: 'client-test',
-    FREEBUFF_ISSUER: 'https://freebuff.com/oidc',
-    APP_ORIGIN
-  };
+  const base: Partial<Env> = { SUPABASE_URL: 'https://project.supabase.co' };
 
-  it('accepts a normal public configuration (issuer may carry a path)', () => {
+  it('accepts a bare https project origin', () => {
     expect(authConfigured(base as Env)).toBe(true);
   });
 
-  it('rejects a malformed client id, a non-URL issuer, or a non-origin APP_ORIGIN', () => {
-    expect(authConfigured({ ...base, FREEBUFF_CLIENT_ID: 'not a client id!' } as Env)).toBe(false);
-    expect(authConfigured({ ...base, FREEBUFF_ISSUER: 'not-a-url' } as Env)).toBe(false);
-    expect(authConfigured({ ...base, APP_ORIGIN: 'https://app.example/path' } as Env)).toBe(false);
-    expect(authConfigured({ ...base, APP_ORIGIN: 'null' } as Env)).toBe(false);
+  it('treats a path, credentials, a bad scheme or a missing URL as not configured', () => {
+    for (const SUPABASE_URL of [
+      'https://project.supabase.co/auth/v1',
+      'https://user:pass@project.supabase.co',
+      'not-a-url',
+      'ftp://project.supabase.co',
+      ''
+    ]) {
+      expect(authConfigured({ ...base, SUPABASE_URL } as Env)).toBe(false);
+    }
+    expect(authConfigured({} as Env)).toBe(false);
   });
 });
 
 describe('no caller-supplied identity is ever accepted', () => {
-  const spoofed = () =>
+  const spoofed = (extra: Record<string, string> = {}) =>
     new Request(`${APP_ORIGIN}/api/v1/me`, {
       headers: {
-        Authorization: 'Bearer forged-supabase-or-freebuff-token',
         'X-User-Id': 'sub-b',
         'X-Organization-Id': 'org-b',
-        Cookie: '__Host-freebuff_session=forged-session-value'
+        Cookie: '__Host-freebuff_session=forged-session-value',
+        ...extra
       }
     });
 
-  it('returns null when no client is configured, regardless of headers', async () => {
+  it('returns null when no Supabase project is configured, regardless of headers', async () => {
     const env = makeEnv();
-    Reflect.deleteProperty(env, 'FREEBUFF_CLIENT_ID');
-    await expect(resolveFreebuffUser(spoofed(), env)).resolves.toBeNull();
+    Reflect.deleteProperty(env, 'SUPABASE_URL');
+    await expect(resolveSupabaseUser(spoofed(), env)).resolves.toBeNull();
   });
 
-  it('returns null for a configured deployment without a session cookie', async () => {
-    await expect(resolveFreebuffUser(spoofed(), makeEnv())).resolves.toBeNull();
+  it('returns null for a configured deployment without a bearer token', async () => {
+    await expect(resolveSupabaseUser(spoofed(), makeEnv())).resolves.toBeNull();
   });
 
-  it('returns null for a malformed session cookie (no fallback to headers)', async () => {
+  it('returns null for a malformed Authorization header (no fallback to other headers)', async () => {
+    for (const Authorization of ['garbage', 'Basic abc', 'Bearer', 'Bearer   ', 'Bearer a b', 'Bearer ']) {
+      await expect(
+        resolveSupabaseUser(spoofed({ Authorization }), makeEnv())
+      ).resolves.toBeNull();
+    }
+  });
+
+  it('returns null for an unverifiable token and never adopts X-User-Id', async () => {
     const env = makeEnv();
-    const request = new Request(`${APP_ORIGIN}/api/v1/me`, {
-      headers: {
-        Cookie: '__Host-freebuff_session=garbage',
-        'X-User-Id': 'sub-b'
-      }
-    });
-    await expect(resolveFreebuffUser(request, env)).resolves.toBeNull();
+    const request = spoofed({ Authorization: 'Bearer forged.token.value' });
+    // Keys are injected so nothing is fetched; a token that cannot be verified
+    // must still resolve to null, whatever identity headers accompany it.
+    await expect(resolveSupabaseUser(request, env, () => null)).resolves.toBeNull();
+    await expect(
+      resolveSupabaseUser(request, env, () => ({
+        hmacSecret: new TextEncoder().encode('some-other-project-secret')
+      }))
+    ).resolves.toBeNull();
   });
 });
 
@@ -433,7 +444,7 @@ describe('CORS and preflight never bypass authorization', () => {
 
   it('answers a preflight before any route handler runs', async () => {
     const unconfigured = makeEnv();
-    Reflect.deleteProperty(unconfigured, 'FREEBUFF_CLIENT_ID');
+    Reflect.deleteProperty(unconfigured, 'SUPABASE_URL');
     const response = await app.request(
       'https://api.example/api/v1/projects',
       {
@@ -452,21 +463,21 @@ describe('CORS and preflight never bypass authorization', () => {
   });
 });
 
-describe('auth route fallback is truthful', () => {
-  it('answers 503 auth_not_configured when no client exists', async () => {
-    const env = makeEnv();
-    Reflect.deleteProperty(env, 'FREEBUFF_CLIENT_ID');
-    const response = await app.request('https://api.example/auth/freebuff/signin', {}, env);
-    expect(response.status).toBe(503);
-    expect((await response.json()).error).toBe('auth_not_configured');
-    expect(response.headers.get('Cache-Control')).toBe('private, no-store');
+describe('the retired Freebuff auth routes are truthful', () => {
+  it('answers 410 auth_moved instead of an outage', async () => {
+    for (const path of ['/auth/freebuff/signin', '/auth/freebuff/callback', '/auth/freebuff/session']) {
+      const response = await app.request(`https://api.example${path}`, {}, makeEnv());
+      expect(response.status).toBe(410);
+      expect((await response.json()).error).toBe('auth_moved');
+      expect(response.headers.get('Cache-Control')).toBe('private, no-store');
+    }
   });
 
-  it('answers 404 for an unknown auth path when a client is configured', async () => {
-    const response = await app.request('https://api.example/auth/freebuff/login', {}, makeEnv());
-    expect(response.status).toBe(404);
-    expect((await response.json()).error).toBe('not_found');
-    expect(response.headers.get('Cache-Control')).toBe('private, no-store');
+  it('answers 410 whether or not Supabase is configured', async () => {
+    const env = makeEnv();
+    Reflect.deleteProperty(env, 'SUPABASE_URL');
+    const response = await app.request('https://api.example/auth/freebuff/signin', {}, env);
+    expect(response.status).toBe(410);
   });
 });
 
@@ -482,11 +493,12 @@ describe('readiness reports configuration without leaking origins', () => {
     expect(JSON.stringify(json)).not.toContain('app.example');
   });
 
-  it('reports not configured when no origin is valid', async () => {
+  it('reports not configured when no origin or auth URL is valid', async () => {
     const env = makeEnv({
       DB: createSqliteD1(new Database(':memory:')),
       APP_ORIGIN: 'https://app.example/path',
-      ALLOWED_ORIGINS: '*'
+      ALLOWED_ORIGINS: '*',
+      SUPABASE_URL: 'https://project.supabase.co/auth/v1'
     });
     const response = await app.request('https://api.example/readyz', {}, env);
     const json = await response.json();
@@ -516,10 +528,10 @@ describe('static guards against identity and CSRF regressions', () => {
     text: readFileSync(path, 'utf8')
   }));
 
-  it('contains no test-only identity override or header-derived identity', () => {
+  it('contains no test-only identity override and no header-derived identity', () => {
     const forbidden = [
       /AUTH_USER_OVERRIDE/,
-      /headers\s*\.\s*get\(\s*['"]authorization['"]/i,
+      /headers\s*\.\s*get\(\s*['"]x-user['"]/i,
       /headers\s*\.\s*get\(\s*['"]x-(?:user|organization)-id['"]/i
     ];
     for (const pattern of forbidden) {
@@ -527,18 +539,33 @@ describe('static guards against identity and CSRF regressions', () => {
       expect(hits).toEqual([]);
     }
 
-    // The identity module must not inspect request headers at all; the SDK
-    // reads its own HttpOnly cookie internally.
-    const identity = workerSources.find((file) => file.rel === 'worker/src/identity.ts');
-    if (!identity) throw new Error('identity module missing');
-    expect(identity.text).not.toMatch(/headers/);
+    // Exactly one module may read an identity header, and only `Authorization`.
+    const readers = workerSources
+      .filter((file) => /headers\s*\.\s*get\(\s*['"]authorization['"]/i.test(file.text))
+      .map((file) => file.rel);
+    expect(readers).toEqual(['worker/src/identity.ts']);
+
+    // No cookie is read anywhere: the session is a bearer token now.
+    const cookieReaders = workerSources
+      .filter((file) => /headers\s*\.\s*get\(\s*['"]cookie['"]/i.test(file.text))
+      .map((file) => file.rel);
+    expect(cookieReaders).toEqual([]);
   });
 
-  it('does not mix a second identity provider into the identity module', () => {
-    const identity = workerSources.find((file) => file.rel === 'worker/src/identity.ts');
-    if (!identity) throw new Error('identity module missing');
-    expect(identity.text.toLowerCase()).not.toContain('supabase');
-    expect(identity.text).not.toContain('jwt');
+  it('verifies tokens in exactly one module and never reaches for service_role', () => {
+    const verifiers = workerSources
+      .filter((file) => /jwtVerify\s*\(/.test(file.text))
+      .map((file) => file.rel);
+    expect(verifiers).toEqual(['worker/src/auth.ts']);
+
+    // The authentication path must never hold or consult a service-role key:
+    // SUPABASE_SERVICE_ROLE_KEY belongs to the optional secondary backup only
+    // (worker/src/supabaseBackup.ts), never to identity.
+    for (const rel of ['worker/src/auth.ts', 'worker/src/identity.ts']) {
+      const file = workerSources.find((candidate) => candidate.rel === rel);
+      if (!file) throw new Error(`${rel} missing`);
+      expect(file.text).not.toContain('SERVICE_ROLE');
+    }
   });
 
   it('never sets cookies or reads them in application code', () => {

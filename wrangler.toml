@@ -39,13 +39,20 @@ bucket_name = "manhwa-studio-assets"
 # the owner once the deployment origin exists; this file never invents one.
 #
 # [vars]
-# FREEBUFF_CLIENT_ID = "<client id from `npx @freebuff/auth register`>"
-# FREEBUFF_ISSUER    = "https://freebuff.com/oidc"
-# APP_ORIGIN         = "https://<the API's own origin>"
-# ALLOWED_ORIGINS    = "https://<frontend origin>,https://<preview origin>"
+# SUPABASE_URL    = "https://<project>.supabase.co"   # auth: token verification
+# APP_ORIGIN      = "https://<the API's own origin>"
+# ALLOWED_ORIGINS = "https://<frontend origin>,https://<preview origin>"
 #
-# APP_ORIGIN is both the OIDC baseUrl and the first CORS allow-list entry, so it
-# must be this Worker's own origin. ALLOWED_ORIGINS lists the extra EXACT
+# APP_ORIGIN is the first CORS allow-list entry, so it must be this Worker's own
+# origin. SUPABASE_URL must be a bare origin: the API builds
+# <SUPABASE_URL>/auth/v1/.well-known/jwks.json from it and reports
+# `auth_not_configured` (503) for anything with a path.
+#
+# Sign in with Freebuff is retired (TASK 11). The browser talks to Supabase Auth
+# directly; this Worker only verifies the access token it receives as
+# `Authorization: Bearer`. TASK 11 requires the frontend origin in
+# ALLOWED_ORIGINS *and* `Authorization` in the preflight allow-list — both are
+# already in the code (worker/src/origins.ts). ALLOWED_ORIGINS lists the extra EXACT
 # origins a separately hosted frontend is served from — wildcards are
 # impossible by design (worker/src/origins.ts), because the browser sends the
 # session cookie with these requests.
@@ -53,11 +60,12 @@ bucket_name = "manhwa-studio-assets"
 # Secrets (never here, never in a Vite variable):
 #   bunx wrangler secret put GEMINI_API_KEY
 #   bunx wrangler secret put GEMINI_MODEL      # generation needs BOTH
-#   bunx wrangler secret put SUPABASE_URL      # optional secondary backup
-#   bunx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+#   bunx wrangler secret put SUPABASE_JWT_SECRET        # legacy HS256 projects only
+#   bunx wrangler secret put SUPABASE_SERVICE_ROLE_KEY  # optional secondary backup only
 #
 # First-use organizations need no configuration: worker/src/provisioning.ts
-# derives exactly one workspace per verified OIDC `sub` on first request.
+# derives exactly one workspace per verified Supabase `sub` (a UUID) on first
+# request. No migration was added: `users.id` is TEXT and accepts a UUID.
 #
 # Hostname: this account has no workers.dev subdomain yet, so a deploy reports
 # the script without a public URL. Create the subdomain once in Workers & Pages,

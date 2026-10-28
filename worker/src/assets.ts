@@ -15,7 +15,7 @@
 import { Hono } from 'hono';
 import type { Env } from './env';
 import { authConfigured } from './auth';
-import { resolveFreebuffUser, type AuthenticatedUser, type UserResolver } from './identity';
+import { resolveSupabaseUser, type AuthenticatedUser, type UserResolver } from './identity';
 import { resolveOrganizationForUser } from './provisioning';
 import { isAllowedMutationOrigin } from './origins';
 
@@ -101,7 +101,7 @@ function isAllowedContentType(type: string): boolean {
 }
 
 export function createAssetApp(
-  deps: { resolveUser: UserResolver } = { resolveUser: resolveFreebuffUser }
+  deps: { resolveUser: UserResolver } = { resolveUser: resolveSupabaseUser }
 ): Hono<{ Bindings: Env }> {
   const app = new Hono<{ Bindings: Env }>();
 

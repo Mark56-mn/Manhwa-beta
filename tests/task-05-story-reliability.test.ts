@@ -103,8 +103,7 @@ beforeEach(() => {
   seed();
   env = {
     DB: createSqliteD1(db),
-    FREEBUFF_CLIENT_ID: 'client-test',
-    FREEBUFF_ISSUER: 'https://issuer.test',
+    SUPABASE_URL: 'https://project.supabase.co',
     APP_ORIGIN
   };
 });

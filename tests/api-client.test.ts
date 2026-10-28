@@ -55,7 +55,8 @@ describe('successful requests', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0].url).toBe(`${BASE}/api/v1/projects`);
     expect(calls[0].init.method).toBe('GET');
-    expect(calls[0].init.credentials).toBe('include');
+    // Bearer tokens need no ambient cookie, so nothing is sent implicitly.
+    expect(calls[0].init.credentials).toBe('omit');
 
     const headers = calls[0].init.headers as Record<string, string>;
     expect(headers.Authorization).toBeUndefined();

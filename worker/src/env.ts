@@ -54,12 +54,26 @@ export interface Env {
   FILES?: R2BucketLike;
 
   /**
-   * Sign in with Freebuff (public configuration, not secrets; no client
-   * secret exists). Minted by the project owner via `npx @freebuff/auth
-   * register` or Freebuff Desktop — never invented by this codebase.
+   * Supabase project URL (PUBLIC, e.g. `https://abcd.supabase.co`). The API
+   * verifies Supabase Auth access tokens against this project's published
+   * JWKS; it is also the optional secondary backup target. A bare http(s)
+   * origin only — a path/query makes it unusable (never patched up).
    */
-  FREEBUFF_CLIENT_ID?: string;
-  FREEBUFF_ISSUER?: string;
+  SUPABASE_URL?: string;
+
+  /**
+   * Legacy HS256 verification secret (the project's JWT secret). SECRET: set
+   * with `wrangler secret put` only, never in [vars], never in a VITE_
+   * variable. Modern projects sign access tokens with ES256 and need no
+   * secret at all — leave this unset unless the project still issues HS256.
+   */
+  SUPABASE_JWT_SECRET?: string;
+
+  /**
+   * This API's own origin: the first CORS allow-list entry, and what the
+   * same-origin mutation guard compares against. Public, never derived from a
+   * request Host header.
+   */
   APP_ORIGIN?: string;
 
   /**
@@ -73,9 +87,9 @@ export interface Env {
   /**
    * Supabase backup target (secondary only — never the primary database).
    * Server-side only; SUPABASE_SERVICE_ROLE_KEY is a secret and must never be
-   * exposed to the browser. When either is absent, backup is `not_configured`.
+   * exposed to the browser, nor used for token verification. When absent,
+   * backup is `not_configured`.
    */
-  SUPABASE_URL?: string;
   SUPABASE_SERVICE_ROLE_KEY?: string;
 
   /**

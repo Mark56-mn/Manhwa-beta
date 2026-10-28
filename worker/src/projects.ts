@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { Context } from 'hono';
 import type { Env } from './env';
 import { authConfigured } from './auth';
-import { resolveFreebuffUser, type AuthenticatedUser, type UserResolver } from './identity';
+import { resolveSupabaseUser, type AuthenticatedUser, type UserResolver } from './identity';
 import { resolveOrganizationForUser } from './provisioning';
 import { isAllowedMutationOrigin } from './origins';
 
@@ -55,7 +55,7 @@ export interface PublicProject {
 }
 
 export interface ProjectsDeps {
-  /** Production default verifies the Freebuff session; tests inject a double. */
+  /** Production default verifies the Supabase access token; tests inject a double. */
   resolveUser: UserResolver;
 }
 
@@ -138,7 +138,7 @@ type Access =
   | { ok: false; response: Response };
 
 export function createProjectsApp(
-  deps: ProjectsDeps = { resolveUser: resolveFreebuffUser }
+  deps: ProjectsDeps = { resolveUser: resolveSupabaseUser }
 ): Hono<{ Bindings: Env }> {
   const app = new Hono<{ Bindings: Env }>();
 

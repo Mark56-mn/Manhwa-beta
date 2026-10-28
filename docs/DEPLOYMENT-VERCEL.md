@@ -17,15 +17,16 @@ Read this with `docs/DEPLOYMENT.md` (the Worker/API deploy procedure) and
 | API | **Cloudflare Worker** (Hono) | `worker/`, `wrangler.toml` | deployed only as the owner's Freebuff site (`site-ad1c92…freebuff.page`); the owner's own `manhwa-studio-api` Worker is **not deployed** |
 | Database | **D1** (`DB` binding) | `db/migrations/` (`migrations_dir`) | schema committed; migrations **not applied** to any created database, but the chain is preflight-clean and applies cleanly to a disposable local D1 (TASK 10) |
 | Files | **R2** (`FILES` binding) | `worker/src/assets.ts` | bound in `wrangler.toml` |
-| Identity | **Sign in with Freebuff** (OIDC) | `worker/src/auth.ts` | client registered only on the Freebuff-hosted deployment |
+| Identity | **Supabase Auth** (bearer access tokens) | `src/lib/supabase*.ts`, `src/components/AuthPanel.tsx`, `worker/src/auth.ts` | implemented and unit-tested; **no Supabase project configured here**, so live sign-in is unverified |
 
 The Vercel frontend is a **static** build. It has no server runtime and no credentials of its own. Every
 server-backed feature is reached by the browser calling the API origin configured at build time.
 
-**Recommended change (TASK 10):** add same-origin rewrites for `/api/*` and `/auth/*` to the Worker so the
-session cookie can exist at all — the SDK's cookie is `__Host-…; SameSite=Lax` with no `Domain` attribute,
-so a separately hosted API is unreachable for a signed-in user. In that topology `VITE_API_BASE_URL` stays
-**empty**, and `APP_ORIGIN` is this frontend's origin. Details:
+**TASK 11 supersedes the TASK 10 cookie proxy.** The session is now a Supabase access token sent as
+`Authorization: Bearer`, so a separately hosted API works with plain CORS: set `VITE_API_BASE_URL` to the
+Worker origin and add the Vercel origin to `ALLOWED_ORIGINS`. No rewrite or proxy is needed, and
+`APP_ORIGIN` stays the Worker's own origin. Background:
+[`docs/audits/TASK-11-SUPABASE-AUTH-PLAN.md`](audits/TASK-11-SUPABASE-AUTH-PLAN.md) and
 [`docs/audits/TASK-10-DEPLOYMENT-REVIEW.md`](audits/TASK-10-DEPLOYMENT-REVIEW.md) §3.
 
 ---
@@ -61,6 +62,8 @@ serves `index.html` for deep links (SPA fallback) and sets `nosniff`, `Referrer-
 | Name | Value | Scope | Public? | Why |
 |---|---|---|---|---|
 | `VITE_API_BASE_URL` | The API **origin** only, e.g. `https://<worker-host>` | Production **and** Preview | **Public** — Vite inlines it into the JavaScript bundle | Tells the browser where the shared API lives |
+| `VITE_SUPABASE_URL` | `https://<project>.supabase.co` (bare origin, no path) | Production **and** Preview | **Public** | Supabase project for browser sign-in |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | The project's publishable key | Production **and** Preview | **Public** — it is designed to be public | Client-side Supabase Auth. `VITE_SUPABASE_ANON_KEY` is accepted as a legacy alias. A service-role/secret key is **rejected** by `src/lib/supabaseConfig.ts` |
 | `VITE_VERCEL_ENV` *(optional)* | `$VERCEL_ENV` | all | Public | Only if you want to display which environment a build is |
 
 Rules that the code enforces:
@@ -83,11 +86,12 @@ for `/api/*`, this is exactly what would otherwise look like an empty success).
 
 | Name | Value | Public? | Why |
 |---|---|---|---|
-| `APP_ORIGIN` | The origin the Worker is served from | Public | Always allow-listed; also the OIDC `baseUrl` |
+| `APP_ORIGIN` | The origin the Worker is served from | Public | Always allow-listed; compared by the same-origin mutation guard |
 | `ALLOWED_ORIGINS` | Comma-separated exact origins, including the Vercel origin (production domain **and** each preview origin actually used) | Public | Credentialed CORS allow-list (`worker/src/origins.ts`) |
-| `FREEBUFF_CLIENT_ID`, `FREEBUFF_ISSUER` | From `npx @freebuff/auth register` | Public | Sign-in |
+| `SUPABASE_URL` | `https://<project>.supabase.co` — **bare origin**, no path | Public | Verifies access tokens via JWKS (and is the optional backup target). A path makes it unusable |
+| `SUPABASE_JWT_SECRET` | Project JWT secret — **legacy HS256 projects only** | **Secret** | HS256 verification; modern ES256 projects leave it unset |
 | `GEMINI_API_KEY`, `GEMINI_MODEL` | Owner-provided | **Secret** | Server-side generation only |
-| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Owner-provided | **Secret** | Secondary backup only |
+| `SUPABASE_SERVICE_ROLE_KEY` | Owner-provided | **Secret** | Secondary backup only — never used for authentication |
 
 `ALLOWED_ORIGINS` is an **exact-match** list: a wildcard is impossible by design, because
 credentialed CORS requires a concrete origin. There is no CORS code to write — the Worker
@@ -110,10 +114,9 @@ already answers preflights and echoes only listed origins (`worker/src/index.ts`
    ship (**not** `main` until the corrective work is merged).
 4. **Add `VITE_API_BASE_URL`** for Production + Preview.
 5. **Deploy**, then run the verification in §5.
-6. **Register the Vercel origin's OIDC callback** on the same Freebuff client if you want sign-in
-   there: `https://<vercel-origin>/auth/freebuff/callback` via
-   `npx @freebuff/auth register … --redirect-uri <url>` (append-only). See §6 for the cookie
-   caveat — registration alone does not make cross-site sessions work.
+6. **Configure Supabase redirect URLs** for that frontend origin (Site URL + Redirect URLs,
+   including the bare origin and `/`). Confirmation and password-reset emails return there; no
+   Worker-side callback or client registration is involved any more.
 
 ---
 
@@ -146,29 +149,22 @@ it persists. That last step is the only proof that persistence works end-to-end.
 
 ---
 
-## 6. Known limitation: cross-site sign-in cookies
+## 6. Cross-origin sign-in: no cookie to work around
 
-The session cookie is `__Host-freebuff_session` — host-only, `SameSite=Lax`. A browser on
-`*.vercel.app` therefore does **not** send it to `*.freebuff.page` (or any other registrable
-domain). Consequences:
+TASK 11 replaced the `__Host-freebuff_session` cookie with a Supabase access token sent as
+`Authorization: Bearer`. A `*.vercel.app` frontend can therefore sign in against a
+`*.workers.dev` API with plain CORS. Requirements:
 
-- The app loads, and unauthenticated calls (`/api/v1/me`) correctly answer `401` — the panel
-  shows "Not signed in", not a fake session.
-- Pressing **Sign in with Freebuff** navigates to the API origin's sign-in. The session is
-  created **on the API host**, and the browser is returned to the API origin's `/`, not to the
-  Vercel app.
+- the Vercel origin is in the Worker's `ALLOWED_ORIGINS` (exact match — no wildcard is possible);
+- `Authorization` is in the preflight allow-list (`worker/src/origins.ts` — already true);
+- in Supabase, Site URL + Redirect URLs include that origin, or confirmation and reset emails
+  point somewhere else;
+- an unconfigured or rejected Supabase build shows a configuration diagnostic: no form that
+  cannot work, and never a fake session.
 
-Working topologies, in order of effort:
-
-1. **Custom domains under one parent** (`app.example.com` on Vercel, `api.example.com` on the
-   Worker): the cookie becomes same-site and cross-origin `fetch` with `credentials: 'include'`
-   works.
-2. **Same-origin proxy** from the hosting platform to the Worker: no CORS, cookies natural, but
-   the Worker must serve the app's origin as its own.
-3. **Static honesty**: ship the frontend without sign-in; the browser-local workspace and demo
-   features work, and the shared panel states that a session is not available on this host.
-
-Option 3 is what a Vercel deployment of this branch does today unless (1) or (2) is set up.
+What this trades away: the access token is readable by page script, which is inherent to a
+bearer design. Keep the publishable key public-but-publishable, never ship a service-role key,
+and rely on Supabase refresh/expiry — the API verifies `exp`, `aud` and `iss` on every request.
 
 ---
 
@@ -180,7 +176,7 @@ Option 3 is what a Vercel deployment of this branch does today unless (1) or (2)
 | Demo AI prompt workbench | **Demo only** — labelled, never inserted into project data |
 | Shared workspace: list/create cloud projects, profiles, Story Bibles, episodes, credits, generation | **Implemented and unit-tested against the real Worker**; requires `VITE_API_BASE_URL` + Worker CORS + a session. Not verified live from a Vercel origin in this task |
 | Live AI generation | **Not verified** — needs `GEMINI_API_KEY` + `GEMINI_MODEL` Worker secrets; otherwise the API answers `provider_not_configured` and charges nothing |
-| Sign-in | **Implemented**; subject to §6 for a cross-site host |
+| Sign-in: registration, login, logout, session restore, password reset | **Implemented and unit-tested against a fake gateway**; needs `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY` and a real Supabase project. Live sign-in is **unverified** here |
 | Image/voice/video rendering | **Not implemented** |
 | YouTube upload/publishing | **Not implemented** — the UI says so explicitly |
 

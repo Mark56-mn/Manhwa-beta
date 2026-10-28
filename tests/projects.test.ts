@@ -68,8 +68,7 @@ function makeEnv(): Env {
   return {
     DB: createSqliteD1(db),
     FILES: new MemoryR2Bucket() as unknown as Env['FILES'],
-    FREEBUFF_CLIENT_ID: 'client-test',
-    FREEBUFF_ISSUER: 'https://issuer.test',
+    SUPABASE_URL: 'https://project.supabase.co',
     APP_ORIGIN,
     ALLOWED_ORIGINS: SECOND_HOST
   };
@@ -117,7 +116,7 @@ describe('projects API — authentication gate', () => {
 
   it('returns 503 auth_not_configured (never an anonymous allowance)', async () => {
     const env = makeEnv();
-    Reflect.deleteProperty(env, 'FREEBUFF_CLIENT_ID');
+    Reflect.deleteProperty(env, 'SUPABASE_URL');
     const res = await call(projectsAs(user('sub-a')), '/api/v1/projects', {}, env);
     expect(res.status).toBe(503);
     expect((await res.json()).error).toBe('auth_not_configured');

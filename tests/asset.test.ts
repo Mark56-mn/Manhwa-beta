@@ -266,8 +266,7 @@ function makeEnv(d1?: InMemoryDB, files?: MockR2Bucket, user?: { sub: string; na
   return {
     DB: db as unknown as Env['DB'],
     FILES: r2 as unknown as Env['FILES'],
-    FREEBUFF_CLIENT_ID: 'cli-test',
-    FREEBUFF_ISSUER: 'https://freebuff.test',
+    SUPABASE_URL: 'https://project.supabase.co',
     APP_ORIGIN: 'http://localhost:8788',
     ...(user ? { AUTH_USER_OVERRIDE: user } : {}),
   } as Env;
@@ -297,7 +296,7 @@ describe('asset routes (TASK 12)', () => {
 
   it('returns 503 auth_not_configured when Freebuff client is not configured', async () => {
     const env = makeEnv(undefined, undefined);
-    Reflect.deleteProperty(env, 'FREEBUFF_CLIENT_ID');
+    Reflect.deleteProperty(env, 'SUPABASE_URL');
     const req = new Request('http://localhost/api/v1/assets', { method: 'GET' });
     const res = await assetApp.fetch(req, env) as Response;
     expect(res.status).toBe(503);

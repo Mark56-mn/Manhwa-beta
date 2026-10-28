@@ -16,7 +16,7 @@ owner's **Freebuff-hosted site**, which runs a **~40-commit stale** revision of 
 | Cloudflare API token | **valid** — account read, Workers scripts list, D1 list/query, R2 list and zones all succeeded. Values are never printed; loaded from the gitignored `.env.local` |
 | D1 database `manhwa-studio` | **exists** — `d9557398-b439-463a-b5aa-a3703d5c3fdb`, WNAM, 111 kB, `num_tables 7`. `d1_migrations` contains **only `0001_init_tenancy.sql`**. Tables: `organizations`, `users`, `organization_memberships`, `projects`, `audit_events`, `assets`, `d1_migrations`. Rows: **0 / 0 / 0** — no production data yet |
 | R2 bucket `manhwa-studio-assets` | **exists** (created 2026-10-19), 0 bytes used, bound as `FILES` |
-| Sign in with Freebuff (OIDC) | **not configured** on the owner's account (would answer `auth_not_configured`, and `/readyz` would report `auth: not_configured`). Configured only on the Freebuff-hosted site |
+| Identity | **Supabase Auth** since TASK 11 (Freebuff OIDC retired; `/auth/freebuff/*` now answers `410 auth_moved`). The Worker verifies a bearer access token against the project's JWKS. **No Supabase project is configured in this environment**, so `/readyz` reports `auth: not_configured` and protected routes answer `503` |
 | Worker deployment (owner's account) | **none** — `GET /accounts/…/workers/scripts` → `[]`; **no `workers.dev` subdomain** (error 10007) |
 | Freebuff-hosted deployment | **published and up** (`site-ad1c9222…freebuff.page`) but **stale**: no `/api/v1/projects` (404), no CORS headers, no frontend assets. Preview environment has never been deployed |
 | Frontend | **live on Vercel** at <https://manhwa-beta.vercel.app>, but built with **no `VITE_API_BASE_URL`** — it is disconnected by construction and says so |
@@ -75,8 +75,11 @@ CI=true bunx wrangler d1 migrations apply manhwa-studio --local --persist-to /tm
 #   (apply has no --yes flag; CI=true plus a TTY or piped confirmation is required)
 
 # 4. Group 3 — reversible configuration:
-#    add to wrangler.toml [vars]: FREEBUFF_CLIENT_ID, FREEBUFF_ISSUER, APP_ORIGIN, ALLOWED_ORIGINS
-npx @freebuff/auth register … --redirect-uri https://<origin>/auth/freebuff/callback   # append-only
+#    add to wrangler.toml [vars]: SUPABASE_URL, APP_ORIGIN, ALLOWED_ORIGINS
+#    SUPABASE_URL is a bare origin: https://<project>.supabase.co  (a path => auth_not_configured)
+#    No auth callback is registered on the Worker any more: sign-in happens in the
+#    browser. In the Supabase dashboard set Site URL + Redirect URLs to the
+#    frontend origin(s) so confirmation and reset emails return correctly.
 bunx wrangler secret put GEMINI_API_KEY      # optional; typed interactively, never in a flag or chat
 bunx wrangler secret put GEMINI_MODEL        # optional; both are required together
 
@@ -105,10 +108,11 @@ attach a custom domain. `oppa-technologies.online` is active on this account, so
 - **R2 (`FILES`)** — `manhwa-studio-assets`. Enabled on the account 2026-10-19; the earlier `error 10042`
   was the account-level R2 entitlement, **not** token scope. Asset routes live in `worker/src/assets.ts`
   (org-scoped, 10 MiB cap, content-type allow-list) and are covered by `tests/asset.test.ts`.
-- **Sign in with Freebuff** — register the client with the owner's Freebuff login (`npx @freebuff/auth
-  register`, or a Freebuff Sites project), then set `FREEBUFF_CLIENT_ID`, `FREEBUFF_ISSUER` and
-  `APP_ORIGIN` as public vars. There is **no client secret**. `APP_ORIGIN` must be a canonical origin and
-  is never derived from a request `Host`.
+- **Supabase Auth** — set `SUPABASE_URL` (public, bare project origin) as a var. The Worker verifies
+  `Authorization: Bearer` access tokens against `<SUPABASE_URL>/auth/v1/.well-known/jwks.json`, accepting
+  only ES256/RS256 (or HS256 with a configured `SUPABASE_JWT_SECRET`, secret-only, for legacy projects).
+  `APP_ORIGIN` must be a canonical origin and is never derived from a request `Host`. **No migration is
+  needed**: `users.id` is `TEXT` and accepts the Supabase UUID `sub`.
 - **`ALLOWED_ORIGINS`** — comma-separated **exact** origins allowed to call the API cross-origin (e.g. the
   Vercel origin, production *and* each preview origin actually used). Wildcards are impossible by design.
 - **Secrets** — `bunx wrangler secret put <NAME>`. Generation requires **both** `GEMINI_API_KEY` and an
@@ -117,22 +121,24 @@ attach a custom domain. `oppa-technologies.online` is active on this account, so
 ## First-use organizations
 
 No seeding step is required. The first authenticated request from a verified user provisions exactly one
-organization plus an `owner` membership, with every key derived from their OIDC `sub`
+organization plus an `owner` membership, with every key derived from their Supabase `sub` (a UUID)
 (`worker/src/provisioning.ts`). Repeats and concurrent first sign-ins are no-ops, an existing membership
 always wins, and a non-canonical subject is refused without creating a tenant. Covered by
-`tests/provisioning.test.ts`; still **not** exercised against a real D1 or a real session.
+`tests/provisioning.test.ts`, `tests/supabase-tenancy.test.ts` (UUID subjects, concurrent convergence,
+no email-based linking); still **not** exercised against a real D1 or a real session.
 
-## Known limitation: cross-site session cookies
+## Cross-site topology: no cookie to work around (TASK 11)
 
-The session cookie is `__Host-…`, **host-only**, `SameSite=Lax`. It is therefore sent only on the same
-site: same origin ✅, sibling subdomains of one registrable domain ✅, unrelated domains ❌ (a
-`*.vercel.app` frontend calling a `*.workers.dev` API cannot sign in — the app will load and then answer
-401 honestly). Use one parent domain, or serve the SPA from the Worker itself.
+The session is a Supabase access token held by the browser and sent as `Authorization: Bearer`, so the
+old `__Host-` cookie constraint is gone: a `*.vercel.app` frontend can call a `*.workers.dev` API with
+plain CORS as long as (1) the frontend origin is in `ALLOWED_ORIGINS` and (2) `Authorization` is in the
+preflight allow-list — both are already enforced in `worker/src/origins.ts`.
 
-**With the recommended Vercel-proxy topology** (`docs/audits/TASK-10-DEPLOYMENT-REVIEW.md` §3), set
-`APP_ORIGIN` to the **frontend** origin — the SDK derives `redirect_uri` from it, so it must be the origin
-the browser sees, never the Worker's own hostname. Getting this backwards means the `__Host-` cookie lands
-on the wrong host and every call answers 401.
+That retires the TASK 10 same-origin proxy recommendation for authentication. What replaces it is token
+hygiene: the access token is readable by page script (inherent to a bearer design), so keep Supabase's
+refresh/expiry settings sane, never ship a service-role key to the browser
+(`src/lib/supabaseConfig.ts` rejects one), and let `APP_ORIGIN` stay this Worker's own origin for the
+same-origin mutation guard.
 
 ## Environment separation
 

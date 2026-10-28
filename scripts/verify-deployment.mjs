@@ -13,7 +13,7 @@
  * Checks:
  *   1. API liveness             GET  /healthz                  -> 200 JSON
  *   2. API readiness            GET  /readyz                   -> 200 (reports degraded detail)
- *   3. Credentialed CORS read   GET  /api/v1/me + Origin       -> 401 (or an honest 503 auth_not_configured)
+ *   3. CORS read with a bearer  GET  /api/v1/me + Origin       -> 401 (or an honest 503 auth_not_configured)
  *                                                               + matched Allow-Origin + credentials
  *   4. Credentialed preflight   OPTIONS /api/v1/projects       -> 204 + methods/headers/credentials
  *   5. Foreign origin refused   OPTIONS + GET from an unlisted origin -> no Allow-Origin
@@ -136,8 +136,8 @@ async function main() {
 
   if (origin) {
     // 3. Credentialed cross-origin read must be *answered* with CORS headers.
-    //    401 = signed out (auth configured). 503 auth_not_configured = no OIDC
-    //    client registered yet, which the API states explicitly. Anything else
+    //    401 = signed out (Supabase configured). 503 auth_not_configured = no
+    //    Supabase project configured yet, which the API states explicitly. Anything else
     //    (200, a 404, an HTML page) means the request did not reach the API.
     try {
       const { response, text } = await call(`${api}/api/v1/me`, { headers: { Origin: origin } });
@@ -164,21 +164,26 @@ async function main() {
         headers: {
           Origin: origin,
           'Access-Control-Request-Method': 'POST',
-          'Access-Control-Request-Headers': 'content-type'
+          'Access-Control-Request-Headers': 'authorization,content-type'
         }
       });
       const allowOrigin = response.headers.get('access-control-allow-origin');
       const methods = response.headers.get('access-control-allow-methods') ?? '';
+      const allowedHeaders = response.headers.get('access-control-allow-headers') ?? '';
       const credentials = response.headers.get('access-control-allow-credentials');
+      // `authorization` must be advertised, or a browser can never send the
+      // Supabase access token cross-origin (the preflight fails first).
+      const advertisesAuth = /authorization/i.test(allowedHeaders);
       const ok =
         response.status === 204 &&
         allowOrigin === origin &&
         /POST|PUT|PATCH|DELETE/.test(methods) &&
+        advertisesAuth &&
         credentials === 'true';
       record(
         'Credentialed preflight (OPTIONS /api/v1/projects)',
         ok,
-        `HTTP ${response.status}, allow-origin=${allowOrigin ?? 'absent'}, methods=${methods || 'absent'}`
+        `HTTP ${response.status}, allow-origin=${allowOrigin ?? 'absent'}, methods=${methods || 'absent'}, authorization=${advertisesAuth}`
       );
     } catch (error) {
       record('Credentialed preflight (OPTIONS /api/v1/projects)', false, `error: ${error instanceof Error ? error.message : error}`);

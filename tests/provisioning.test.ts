@@ -52,8 +52,7 @@ function makeEnv(): Env {
   return {
     DB: createSqliteD1(db),
     FILES: new MemoryR2Bucket() as unknown as Env['FILES'],
-    FREEBUFF_CLIENT_ID: 'client-test',
-    FREEBUFF_ISSUER: 'https://issuer.test',
+    SUPABASE_URL: 'https://project.supabase.co',
     APP_ORIGIN,
     ALLOWED_ORIGINS: SECOND_HOST
   };

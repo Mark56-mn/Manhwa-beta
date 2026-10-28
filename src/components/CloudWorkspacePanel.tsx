@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { AlertTriangle, Cloud, Loader2, RefreshCw, Server, ShieldAlert } from 'lucide-react';
 import { api } from '../lib/api';
-import { isCrossOriginApi, resolveApiConfig } from '../lib/apiConfig';
+import { resolveApiConfig } from '../lib/apiConfig';
+import { AuthPanel } from './AuthPanel';
 import {
   loadCloudWorkspace,
   saveCloudProject,
@@ -40,8 +41,6 @@ export function CloudWorkspacePanel() {
       : apiConfig.kind === 'invalid'
         ? 'VITE_API_BASE_URL is invalid'
         : 'same origin (VITE_API_BASE_URL unset)';
-  const crossOriginApi = apiConfig.kind === 'configured' && isCrossOriginApi(apiConfig.baseUrl);
-
   const [state, setState] = useState<CloudWorkspaceState>({ status: 'loading' });
   const [reloadKey, setReloadKey] = useState(0);
   const [title, setTitle] = useState('');
@@ -57,6 +56,10 @@ export function CloudWorkspacePanel() {
     });
     return () => controller.abort();
   }, [reloadKey]);
+
+  // The session is owned by AuthPanel; a sign-in or sign-out re-reads the
+  // workspace so this panel never shows stale or optimistic state.
+  const handleSessionChange = () => setReloadKey((key) => key + 1);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -108,6 +111,8 @@ export function CloudWorkspacePanel() {
       </div>
 
       <div className="p-5 space-y-4">
+        <AuthPanel onSessionChange={handleSessionChange} />
+
         {state.status === 'loading' && (
           <p role="status" className="flex items-center gap-2 text-xs text-slate-400">
             <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
@@ -121,22 +126,10 @@ export function CloudWorkspacePanel() {
               <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0" />
               <span>
                 Not signed in to the shared API. Cloud projects stay unavailable, and nothing is
-                stored or displayed as saved until a real session exists.
+                stored or displayed as saved until a real session exists. Sign in with the Supabase
+                form above; the access token is attached to each request automatically.
               </span>
             </p>
-            <a
-              href={`${api.baseUrl}/auth/freebuff/signin?returnTo=%2F`}
-              className="px-3 py-1.5 text-xs font-semibold text-slate-900 bg-cyan-400 rounded-lg hover:bg-cyan-300 transition-colors shrink-0"
-            >
-              Sign in with Freebuff
-            </a>
-            {crossOriginApi && (
-              <p className="text-[10px] text-slate-500 sm:col-span-2">
-                Sign-in runs on the API origin ({apiConfig.kind === 'configured' ? apiConfig.baseUrl : ''}).
-                Its session cookie is host-only, so a browser on this origin only keeps the session when
-                both hosts share a parent domain; otherwise the API must be proxied from this origin.
-              </p>
-            )}
           </div>
         )}
 

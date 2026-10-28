@@ -5,8 +5,10 @@
  *  - One typed module performs network calls; components never call `fetch`.
  *  - The API origin is configuration (`VITE_API_BASE_URL`), never hardcoded and
  *    never a secret. Empty means same-origin (the Freebuff-hosted build).
- *  - Session auth is the server-issued cookie: `credentials: 'include'`. There
- *    is no token in browser storage and no fabricated user identity.
+ *  - Auth is a Supabase access token sent as `Authorization: Bearer`
+ *    (TASK 11): supabase-js owns the session, this client asks a token provider
+ *    for the current token, and retries exactly once after a refresh on a 401.
+ *    There is no fabricated identity and no anonymous success.
  *  - Failures are typed and honest: 401/403/503, network, timeout, cancellation
  *    and malformed responses are distinct, and none of them is silently
  *    replaced with demo/local data.
@@ -19,6 +21,7 @@ import {
   readApiBaseUrlRaw,
   resolveApiConfig
 } from './apiConfig';
+import { supabaseTokenProvider } from './authToken';
 
 export type ApiErrorKind =
   | 'api_not_configured'
@@ -237,12 +240,45 @@ export type GenerationInput =
 
 export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
+/**
+ * Where the bearer token comes from.
+ *
+ * `getAccessToken` returns the current Supabase access token, or null when
+ * there is no session. `refreshAccessToken` is optional and is called at most
+ * once per request, after a 401.
+ */
+export interface AuthTokenProvider {
+  getAccessToken(): Promise<string | null>;
+  refreshAccessToken?(): Promise<string | null>;
+}
+
+/** A provider that fails (or is misconfigured) must not break a request. */
+async function readToken(auth: AuthTokenProvider | undefined): Promise<string | null> {
+  if (!auth) return null;
+  try {
+    return (await auth.getAccessToken()) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function refreshToken(auth: AuthTokenProvider): Promise<string | null> {
+  if (!auth.refreshAccessToken) return null;
+  try {
+    return (await auth.refreshAccessToken()) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export interface ApiClientOptions {
   /** Public API origin, e.g. `https://api.example`. Empty = same origin. */
   baseUrl?: string;
   fetchImpl?: FetchLike;
   /** Per-request timeout in milliseconds. */
   timeoutMs?: number;
+  /** Bearer-token source. Absent = anonymous requests, which answer 401. */
+  auth?: AuthTokenProvider;
 }
 
 export interface ApiClient {
@@ -407,6 +443,7 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
   const baseUrl = config.kind === 'configured' ? config.baseUrl : '';
   const fetchImpl: FetchLike = options.fetchImpl ?? ((input, init) => fetch(input, init));
   const defaultTimeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const auth = options.auth;
 
   async function request<T>(
     path: string,
@@ -433,17 +470,38 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
     const forwardAbort = () => controller.abort();
     externalSignal?.addEventListener('abort', forwardAbort, { once: true });
 
-    try {
+    // The access token is attached here and nowhere else. `credentials: 'omit'`
+    // because the session is a bearer token, not a cookie: there is no ambient
+    // credential for a cross-site page to ride on.
+    const send = async (token: string | null): Promise<Response> => {
       const headers: Record<string, string> = { Accept: 'application/json' };
       if (init.body !== undefined) headers['Content-Type'] = 'application/json';
+      if (token) headers.Authorization = `Bearer ${token}`;
 
-      const response = await fetchImpl(`${baseUrl}${path}`, {
+      return fetchImpl(`${baseUrl}${path}`, {
         method,
-        credentials: 'include',
+        credentials: 'omit',
         headers,
         body: init.body === undefined ? undefined : JSON.stringify(init.body),
         signal: controller.signal
       });
+    };
+
+    try {
+      // No provider means no await: an anonymous request must be dispatched
+      // synchronously so a caller can still abort it before it is sent.
+      const token = auth ? await readToken(auth) : null;
+      if (externalSignal?.aborted) {
+        throw new ApiError('aborted', 'Request cancelled.');
+      }
+      let response = await send(token);
+
+      // One refresh attempt on an expired token — never a loop. If the refresh
+      // yields nothing new the original 401 stands, and the UI can explain it.
+      if (response.status === 401 && token && auth?.refreshAccessToken) {
+        const refreshed = await refreshToken(auth);
+        if (refreshed && refreshed !== token) response = await send(refreshed);
+      }
 
       const contentType = response.headers.get('content-type') ?? '';
       const text = await response.text();
@@ -673,5 +731,8 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
   };
 }
 
-/** Default client: same-origin unless VITE_API_BASE_URL is configured. */
-export const api = createApiClient();
+/**
+ * Default client: same-origin unless VITE_API_BASE_URL is configured, with the
+ * Supabase session's access token attached to every request.
+ */
+export const api = createApiClient({ auth: supabaseTokenProvider });

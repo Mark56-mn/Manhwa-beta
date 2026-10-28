@@ -13,11 +13,15 @@ import type { Env } from './env';
  *  - Mutations require an allow-listed `Origin` header. A missing Origin
  *    (non-browser caller) or a foreign Origin is rejected, which is the CSRF /
  *    same-origin guard.
+ *  - `Authorization` must be advertised in a preflight: since TASK 11 the
+ *    browser sends a Supabase access token as `Bearer`, and an unlisted header
+ *    fails the preflight before any route (or auth) code runs.
  */
 
 export const MUTATING_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
 const ALLOWED_REQUEST_HEADERS = [
+  'Authorization',
   'Content-Type',
   'X-Project-Id',
   'X-Filename',

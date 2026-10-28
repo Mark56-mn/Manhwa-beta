@@ -1,19 +1,24 @@
 import { Hono } from 'hono';
 import type { Env } from './env';
-import { authConfigured, setupAuth } from './auth';
+import { authConfigured } from './auth';
+import { resolveSupabaseUser } from './identity';
 import assetApp from './assets';
 import projectsApp from './projects';
 import storyApp from './story';
 import { allowedOrigins, corsHeadersFor, preflightHeadersFor } from './origins';
 
-
 /**
- * Manhwa Studio API (blueprint TASK 06/07).
+ * Manhwa Studio API (blueprint TASK 06/07, auth replaced in TASK 11).
  *
- * Health endpoints report OBSERVED state only. Since TASK 07, D1 is a
- * required dependency: /readyz answers 503 until the database answers
- * a real SELECT 1. Auth is honest too: until the owner registers a
- * Freebuff OIDC client, protected routes answer `auth_not_configured`.
+ * Health endpoints report OBSERVED state only. D1 is a required dependency:
+ * /readyz answers 503 until the database answers a real SELECT 1. Auth is
+ * honest too: until SUPABASE_URL is configured, protected routes answer
+ * `auth_not_configured`.
+ *
+ * Identity is a Supabase Auth access token sent as `Authorization: Bearer`
+ * (see worker/src/auth.ts). There is no server-side login route and no session
+ * cookie: registration, sign-in, sign-out, session restoration and password
+ * reset all happen in the browser through supabase-js.
  */
 
 const app = new Hono<{ Bindings: Env }>();
@@ -52,8 +57,8 @@ app.get('/', (c) =>
   c.json({
     service: 'manhwa-studio-api',
     status: 'ok',
-    phase: 'TASK-07 D1 + tenancy foundation',
-    routes: ['/healthz', '/readyz', '/api/v1/me', '/api/v1/projects', '/api/v1/assets/*', '/auth/freebuff/*']
+    phase: 'TASK-11 Supabase Auth',
+    routes: ['/healthz', '/readyz', '/api/v1/me', '/api/v1/projects', '/api/v1/assets/*']
   })
 );
 
@@ -63,7 +68,7 @@ app.get('/healthz', (c) => c.json({ status: 'ok' }));
 /**
  * Readiness: per-dependency observed status.
  * D1 is REQUIRED (non-2xx until it answers); R2 and auth report honest
- * `not_configured` until their tasks land.
+ * `not_configured` until their configuration exists.
  */
 app.get('/readyz', async (c) => {
   const { env } = c;
@@ -88,8 +93,11 @@ app.get('/readyz', async (c) => {
     : { status: 'not_configured', detail: 'No R2 binding attached (TASK 12).' };
 
   checks.auth = authConfigured(env)
-    ? { status: 'ok', detail: 'Sign in with Freebuff client configured.' }
-    : { status: 'not_configured', detail: 'No valid Freebuff OIDC client configured (registered by the owner; see TASK-07 handoff).' };
+    ? { status: 'ok', detail: 'Supabase project configured for access-token verification.' }
+    : {
+        status: 'not_configured',
+        detail: 'SUPABASE_URL is unset or not a bare http(s) origin; protected routes answer 503.'
+      };
 
   // Public, count-only view of the CORS allow-list. Origin values are not
   // disclosed; a misconfiguration is visible without guessing.
@@ -116,78 +124,54 @@ app.route('/', storyApp);
  * Asset routes (TASK 12): delegated to `worker/src/assets.ts`.
  */
 app.all('/api/v1/assets/*', async (c) => {
-  // Delegate asset routes to the TASK-12 asset router. If the owner has not
-  // registered a Freebuff OIDC client, /api/v1/me and the auth-free asset
-  // health probe below still answer honestly; asset mutations require auth.
   return assetApp.fetch(c.req.raw, c.env);
 });
 
 /**
- * Auth routes: the SDK's wrap() intercepts the four real routes
- * (/auth/freebuff/signin|callback|signout|session) before this inner app, so
- * this branch is a fallback only.
+ * The retired Freebuff OIDC routes.
  *
- *  - No valid client configured -> 503 `auth_not_configured` (never a fake login).
- *  - Configured but unknown path (e.g. /auth/freebuff/login) -> 404. Reporting
- *    "not configured" here would be false and previously misled the probe.
+ * They are answered explicitly instead of 404 so an old bookmark, script or
+ * client fails with an accurate reason: authentication moved to Supabase and
+ * happens entirely in the browser. This is not an outage.
  */
 app.all('/auth/freebuff/*', (c) => {
   c.header('Cache-Control', 'private, no-store');
-  if (!authConfigured(c.env)) {
-    return c.json(
-      {
-        error: 'auth_not_configured',
-        detail:
-          'Sign in with Freebuff client IDs must be registered by the project owner (npx @freebuff/auth register, or Freebuff Desktop). See docs/handoffs/TASK-07-HANDOFF.md.'
-      },
-      503
-    );
-  }
-  return c.json({ error: 'not_found', detail: 'No auth route exists at this path.' }, 404);
+  return c.json(
+    {
+      error: 'auth_moved',
+      detail:
+        'Sign in with Freebuff has been replaced by Supabase Auth. Register, sign in, sign out and reset passwords with supabase-js in the browser, then send the access token as `Authorization: Bearer`.'
+    },
+    410
+  );
 });
 
 /**
- * Protected example route: the pattern every future user-data route must
- * follow - server-side getUser, 401 when signed out, personalized responses
- * never cached. Future state-changing routes must additionally pass
- * isSameOriginRequest(request, env.APP_ORIGIN) and authorize against rows
- * keyed by user.sub.
+ * The caller's verified identity. The pattern every future user-data route
+ * follows: server-side verification, 401 when signed out, personalized
+ * responses never cached. State-changing routes additionally pass
+ * isAllowedMutationOrigin(request, env) and authorize against rows keyed by
+ * user.sub.
  */
 app.get('/api/v1/me', async (c) => {
   c.header('Cache-Control', 'private, no-store');
   if (!authConfigured(c.env)) {
-    return c.json({ error: 'auth_not_configured', detail: 'No Freebuff OIDC client configured yet.' }, 503);
+    return c.json(
+      { error: 'auth_not_configured', detail: 'SUPABASE_URL is not configured; access tokens cannot be verified.' },
+      503
+    );
   }
-  const user = await setupAuth(c.env).getUser(c.req.raw);
+  const user = await resolveSupabaseUser(c.req.raw, c.env);
   if (!user) return c.json({ error: 'unauthorized' }, 401);
   return c.json({ sub: user.sub, name: user.name ?? null });
 });
 
 export { app };
 
-type FetchHandler = (request: Request, env: Env) => Response | Promise<Response>;
-
-let wrapped: FetchHandler | undefined;
-let plain: FetchHandler | undefined;
-
-function resolve(env: Env): FetchHandler {
-  if (authConfigured(env)) {
-    // One wrap per isolate; the SDK handles /auth/freebuff/* and cookies.
-    const handler: FetchHandler | undefined = wrapped;
-    if (handler) return handler;
-    const next: FetchHandler = setupAuth(env).wrap(async (request: Request, env2: Env) => app.fetch(request, env2));
-    wrapped = next;
-    return next;
-  }
-  const existing: FetchHandler | undefined = plain;
-  if (existing) return existing;
-  const next: FetchHandler = async (request: Request, env2: Env) => app.fetch(request, env2);
-  plain = next;
-  return next;
-}
-
 export default {
   fetch(request: Request, env: Env): Response | Promise<Response> {
-    return resolve(env)(request, env);
+    // No SDK wrapper: this app is the whole surface, and every protected route
+    // verifies the bearer token itself.
+    return app.fetch(request, env);
   }
 };

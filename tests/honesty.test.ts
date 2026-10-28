@@ -102,8 +102,9 @@ describe('required honest labels are present', () => {
     ['not connected in this build', 'index.html'],
     ['Server-backed', 'src/components/CloudWorkspacePanel.tsx'],
     ['browser-local projects below', 'src/components/CloudWorkspacePanel.tsx'],
-    ['Sign in with Freebuff', 'src/components/CloudWorkspacePanel.tsx'],
-    ['/auth/freebuff/signin', 'src/components/CloudWorkspacePanel.tsx'],
+    ['Sign in to the shared API', 'src/components/AuthPanel.tsx'],
+    ['Supabase Auth', 'src/components/AuthPanel.tsx'],
+    ['Your password is never sent to this API', 'src/components/AuthPanel.tsx'],
   ];
 
   for (const [phrase, rel] of required) {

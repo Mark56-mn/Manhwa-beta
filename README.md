@@ -8,9 +8,10 @@ writing credits — calls the **Cloudflare Worker API (Hono)** through a single 
 > **Honest status (re-verified 27 October 2026):** cloud Story Bible and episode generation are
 > implemented against a real server-side Gemini adapter, and the free plan's 100 writing credits are
 > server-enforced. **No AI call has been made live in this environment** (`GEMINI_API_KEY`/`GEMINI_MODEL`
-> are unset), and **live sign-in is unverified**: no OIDC client is configured for a deployment origin
-> this repository controls. With no provider, generation returns a truthful `provider_not_configured`
-> and nothing is charged. Image, voice, video rendering and YouTube publishing are **not connected**.
+> are unset), and **live sign-in is unverified**: TASK 11 replaced Sign in with Freebuff with Supabase
+> Auth, but no Supabase project is configured for a deployment origin this repository controls, so the
+> app reports "authentication is not configured" rather than signing anyone in. With no provider,
+> generation returns a truthful `provider_not_configured` and nothing is charged. Image, voice, video rendering and YouTube publishing are **not connected**.
 >
 > **Backend reachability, corrected:** the owner's Freebuff-hosted site is **up** (`/healthz` 200,
 > `/readyz` ready, `/api/v1/me` 401) but runs a **~40-commit stale** revision — it has no

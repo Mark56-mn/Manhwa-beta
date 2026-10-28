@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { Context } from 'hono';
 import type { Env } from './env';
 import { authConfigured } from './auth';
-import { resolveFreebuffUser, type AuthenticatedUser, type UserResolver } from './identity';
+import { resolveSupabaseUser, type AuthenticatedUser, type UserResolver } from './identity';
 import { resolveOrganizationForUser } from './provisioning';
 import { isAllowedMutationOrigin } from './origins';
 import { AiProviderError, providerFromEnv, type AiProvider } from './ai';
@@ -268,7 +268,7 @@ export interface StoryDeps {
 
 export function createStoryApp(
   deps: StoryDeps = {
-    resolveUser: resolveFreebuffUser,
+    resolveUser: resolveSupabaseUser,
     resolveProvider: providerFromEnv
   }
 ): Hono<{ Bindings: Env }> {
